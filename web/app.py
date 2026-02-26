@@ -8,8 +8,8 @@ import matplotlib
 matplotlib.use("Agg")
 from .helpers import group
 from .detect import detectOutliers, controlSensitizingGraph
-from gpr.model import run_gp_pipeline, apply_feature_engineering, auto_detect_features
-from gpr.visualize import plot_1d, plot_2d, plot_3d
+from .gpr.model import run_gp_pipeline, apply_feature_engineering, auto_detect_features
+from .gpr.visualize import plot_1d, plot_2d, plot_3d
 
 app = Flask(__name__)
 
