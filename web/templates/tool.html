@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Outlier + GPR Platform</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-left">
+        <span class="brand">GPR Research Platform</span>
+    </div>
+    <div class="nav-right">
+        <a href="/">Home</a>
+        <a href="/tool">Tool</a>
+        <a href="/methodology">Methodology</a>
+        <a href="/creators">Creators</a>
+    </div>
+</nav>
+    <div class="page-container">
+    <h1 class="app-title">ML Outlier + GPR Tool</h1>
+
+    <!-- ========================= -->
+    <!-- STEP 1: UPLOAD -->
+    <!-- ========================= -->
+    <div id="uploadStep" class="step">
+
+        <h2>Step 1: Upload CSV</h2>
+
+        <div class="card center-card">
+            <input type="file" id="fileInput">
+            <button onclick="uploadFile()">Upload</button>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- STEP 2: COLUMN SELECTION -->
+    <!-- ========================= -->
+    <div id="columnStep" class="step" style="display:none;">
+
+        <h2>Step 2: Column Selection</h2>
+
+        <div class="column-grid">
+
+            <div class="column-card">
+                <h3>Control Columns</h3>
+                <div id="controlColumns"></div>
+            </div>
+
+            <div class="column-card">
+                <h3>Metadata Columns</h3>
+                <div id="metadataColumns"></div>
+            </div>
+
+            <div class="column-card">
+                <h3>Output Columns</h3>
+                <div id="outputColumns"></div>
+            </div>
+
+        </div>
+
+        <div class="nav-buttons">
+            <button onclick="prevStep()">Back</button>
+            <button onclick="confirmColumnSelection()">Continue</button>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- STEP 3: FEATURE ENGINEERING -->
+    <!-- ========================= -->
+    <div id="featureEngineeringStep" class="step" style="display:none;">
+
+        <h2>Step 3: Feature Engineering</h2>
+
+        <div class="card">
+
+            <p>
+                Create derived features from existing columns to help the model
+                capture nonlinear relationships.
+            </p>
+
+            <code>pressure_ratio = pressure / temperature</code>
+
+            <div style="margin-top:20px;">
+                <input type="text" id="featureInput"
+                    placeholder="new_feature = col1 * col2">
+                <button onclick="addFeature()">Add Feature</button>
+            </div>
+
+            <ul id="featureList"></ul>
+
+        </div>
+
+        <div class="nav-buttons">
+            <button onclick="prevStep()">Back</button>
+            <button onclick="nextStep()">Continue</button>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- STEP 4: FEATURE SELECTION -->
+    <!-- ========================= -->
+    <div id="featureSelectionStep" class="step" style="display:none;">
+
+        <h2>Step 4: Feature Selection</h2>
+
+        <div class="card">
+
+            <p>Select how features should be chosen for the GPR model.</p>
+
+            <button onclick="selectMode('auto')">Automatic</button>
+            <button onclick="selectMode('manual')">Manual</button>
+
+            <div id="featureSelectionArea" style="display:none; margin-top:20px;">
+
+                <!-- MANUAL -->
+                <div id="manualSection" style="display:none;">
+                    <h3>Manual Assignment</h3>
+
+                    <div class="drag-container">
+                        <div>
+                            <h4>Available Columns</h4>
+                            <ul id="availableColumns" class="dropzone"></ul>
+                        </div>
+
+                        <div>
+                            <h4>Numerical</h4>
+                            <ul id="manualNum" class="dropzone"></ul>
+                        </div>
+
+                        <div>
+                            <h4>Categorical</h4>
+                            <ul id="manualCat" class="dropzone"></ul>
+                        </div>
+                    </div>
+
+                    <button onclick="confirmManual()">Confirm</button>
+                </div>
+
+                <!-- AUTO -->
+                <div id="autoSection" style="display:none;">
+                    <h3>Automatic Detection</h3>
+
+                    <div class="auto-container">
+
+                        <div>
+                            <h4>Numerical</h4>
+                            <ul id="autoNum"></ul>
+                        </div>
+
+                        <div>
+                            <h4>Categorical</h4>
+                            <ul id="autoCat"></ul>
+                        </div>
+
+                    </div>
+
+                    <hr>
+
+                    <h4>Dropped Features</h4>
+                    <ul id="autoDropped"></ul>
+
+                    <button onclick="confirmAuto()">Confirm</button>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="nav-buttons">
+            <button onclick="prevStep()">Back</button>
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- STEP 5: TRAIN + RESULTS -->
+    <!-- ========================= -->
+    <div id="trainingStep" class="step" style="display:none;">
+
+        <h2>Step 5: Train & Results</h2>
+
+        <div class="card">
+
+            <div id="runGprContainer" style="margin-top:20px;">
+                <button id="runGprBtn" onclick="runGPR()">
+                    Run Gaussian Process Regression
+                </button>
+            </div>
+
+            <div id="gprStatus" style="display:none; margin-top:20px;">
+                <strong>Training Gaussian Process Model...</strong>
+                <div id="gprTimer">Elapsed: 0s</div>
+            </div>
+
+            <div id="gprError" style="color:red; margin-top:10px;"></div>
+
+            <div id="metrics" style="margin-top:20px;"></div>
+            <div id="modelSummary" style="margin-top:20px;"></div>
+
+            <!-- Plot Flow -->
+            <div id="plotPrompt" style="display:none; margin-top:20px;">
+                <h3>Generate plots?</h3>
+                <button onclick="showColorOptions()">Yes</button>
+                <button onclick="skipPlots()">No</button>
+            </div>
+
+            <div id="colorOptions" style="display:none; margin-top:20px;">
+                <h4>Select Color Scheme</h4>
+                <button onclick="setColorScheme('default')">Default</button>
+                <button onclick="setColorScheme('colorblind')">Colorblind</button>
+                <button onclick="setColorScheme('high_contrast')">High Contrast</button>
+            </div>
+
+            <div id="plotControls" style="display:none; margin-top:20px;"></div>
+            <div id="plotArea" style="margin-top:20px;"></div>
+
+        </div>
+
+        <div class="nav-buttons">
+            <button onclick="prevStep()">Back</button>
+        </div>
+
+    </div>
+
+    <div id="controlChart"></div>
+</div>
+<script src="/static/script.js"></script>
+</body>
+</html>
