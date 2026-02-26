@@ -1,2 +1,9 @@
-from .model import add_features, standardize_gpr_schema, build_features, fit_gpr
-from .vizualise import plot_gp_1d_slice_scaled
+from .model import run_gp_pipeline
+from .visualize import plot_1d, plot_2d, plot_3d
+
+__all__ = [
+    "run_gp_pipeline",
+    "plot_1d",
+    "plot_2d",
+    "plot_3d",
+]
