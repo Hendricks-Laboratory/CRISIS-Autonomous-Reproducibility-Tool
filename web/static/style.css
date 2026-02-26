@@ -3,7 +3,14 @@ body {
     margin: 0;
     font-family: "Inter", "Helvetica Neue", sans-serif;
     background: #0e1726;
-    color: white;
+    color: #e2e8f0;
+}
+
+/* ====== Page Container ====== */
+.page-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
 }
 
 /* ====== Navbar ====== */
@@ -11,19 +18,22 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 60px;
-    background: rgba(0,0,0,0.3);
-    backdrop-filter: blur(10px);
+    padding: 20px 0;
+    max-width: 1100px;
+    margin: 0 auto;
     position: sticky;
-    width: 90%;
+    top: 0;
+    background: rgba(14, 23, 38, 0.8);
+    backdrop-filter: blur(10px);
     z-index: 1000;
 }
 
 .navbar a {
-    color: #cbd5e1;
+    color: #94a3b8;
     text-decoration: none;
     margin-left: 30px;
     font-weight: 500;
+    transition: 0.2s ease;
 }
 
 .navbar a:hover {
@@ -33,6 +43,7 @@ body {
 .brand {
     font-weight: 600;
     font-size: 18px;
+    color: white;
 }
 
 /* ====== Hero Section ====== */
@@ -55,6 +66,7 @@ body {
 .hero h1 {
     font-size: 48px;
     margin-bottom: 20px;
+    color: white;
 }
 
 .hero p {
@@ -67,52 +79,47 @@ body {
     margin-top: 30px;
     padding: 12px 28px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     background: #3b82f6;
     color: white;
     font-weight: 600;
     cursor: pointer;
+    transition: 0.2s ease;
 }
 
 .hero button:hover {
     background: #2563eb;
 }
 
-.page-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 40px 40px;
-}
-
-.content-section {
-    max-width: 750px;
-    margin: 120px auto 80px auto;
-    padding: 0 24px;  
-    background: rgba(255,255,255,0.03);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-}
-
-.content-section h1 {
-    margin-bottom: 30px;
-    font-size: 32px;
-}
-
-.content-section p {
-    font-size: 16px;
+/* ====== Cards (Universal) ====== */
+.card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 28px;
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
     color: #e2e8f0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
 
-textarea {
-    width: 400px;
-    height: 100px;
+.card h2,
+.card h3,
+.card h4 {
+    color: white;
 }
 
+.card p,
+.card label {
+    color: #cbd5e1;
+}
+
+/* ====== Steps ====== */
 .step {
     display: none;
-    padding: 40px;
+    padding: 40px 0;
 }
 
+/* ====== Column Selection Grid ====== */
 .column-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -121,25 +128,47 @@ textarea {
 }
 
 .column-card {
-    background: white;
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
     padding: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    border: 1px solid rgba(255,255,255,0.08);
     max-height: 400px;
     overflow-y: auto;
-    color: #1f2937; 
+    color: #e2e8f0;
+}
+
+.column-card h3 {
+    color: white;
 }
 
 .column-card label {
-    color: #1f2937;
+    color: #cbd5e1;
+    display: block;
+    margin-bottom: 6px;
 }
 
+/* ====== Navigation Buttons ====== */
 .nav-buttons {
     margin-top: 30px;
     display: flex;
     justify-content: space-between;
 }
 
+button {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #334155;
+    color: white;
+    transition: 0.2s ease;
+}
+
+button:hover {
+    background: #475569;
+}
+
+/* ====== Drag Containers ====== */
 .drag-container {
     display: flex;
     gap: 40px;
@@ -148,18 +177,23 @@ textarea {
 .dropzone {
     min-width: 180px;
     min-height: 200px;
-    border: 1px solid #ccc;
+    border: 1px solid rgba(255,255,255,0.2);
     padding: 10px;
     list-style-type: none;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
 }
 
 .dropzone li {
-    padding: 5px;
+    padding: 6px;
     margin: 4px 0;
-    background: #f0f0f0;
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
     cursor: grab;
+    border-radius: 4px;
 }
 
+/* ====== Automatic Mode Lists ====== */
 .auto-container {
     display: flex;
     gap: 60px;
@@ -175,12 +209,15 @@ textarea {
 #autoDropped li {
     padding: 6px;
     margin: 4px 0;
-    background: #f5f5f5;
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-radius: 4px;
 }
 
+/* ====== Feature Buttons ====== */
 .feature-btn {
     cursor: pointer;
     border: none;
@@ -188,8 +225,55 @@ textarea {
     background: #e74c3c;
     color: white;
     border-radius: 4px;
+    transition: 0.2s ease;
+}
+
+.feature-btn:hover {
+    background: #c0392b;
 }
 
 .restore-btn {
     background: #2ecc71;
+}
+
+.restore-btn:hover {
+    background: #27ae60;
+}
+
+/* ====== Inputs ====== */
+input,
+textarea,
+select {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+textarea {
+    width: 400px;
+    height: 100px;
+}
+
+/* ====== Content Sections ====== */
+.content-section {
+    max-width: 900px;
+    margin: 120px auto 80px auto;
+    padding: 40px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.content-section h1 {
+    margin-bottom: 30px;
+    font-size: 32px;
+    color: white;
+}
+
+.content-section p {
+    font-size: 16px;
+    color: #cbd5e1;
 }
