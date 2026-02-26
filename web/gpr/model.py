@@ -62,8 +62,7 @@ def run_gp_pipeline(
     mode="auto",
     num_cols=None,
     cat_cols=None,
-    drop_num_indices=None,
-    drop_cat_indices=None
+    kernel_config=None
 ):
 
     if target_col not in df.columns:
@@ -114,17 +113,75 @@ def run_gp_pipeline(
     # ---------- MODEL ----------
     n_features = X_train.shape[1]
 
-    kernel = (
-        RBF(length_scale=np.ones(n_features), length_scale_bounds=(1e-2, 1e2))
-        + WhiteKernel(noise_level=1e-4, noise_level_bounds=(1e-8, 1e-2))
-    )
+    # ------------------------
+    # DEFAULT RESEARCH VALUES
+    # ------------------------
+    kernel_type = "rbf"
+    length_scale_init = 1.0
+    length_lower = 1e-2
+    length_upper = 1e2
+    noise_level = 1e-4
+    alpha = 1e-6
+    restarts = 5
+    ard = True  
+
+    if kernel_config:
+
+        kernel_type = kernel_config.get("kernel_type", "rbf")
+
+        if kernel_config.get("advanced", False):
+
+            length_scale_init = kernel_config.get("length_scale_init", 1.0)
+            length_lower = kernel_config.get("length_scale_lower", 1e-2)
+            length_upper = kernel_config.get("length_scale_upper", 1e2)
+            noise_level = kernel_config.get("noise_level", 1e-4)
+            alpha = kernel_config.get("alpha", 1e-6)
+            restarts = kernel_config.get("restarts", 5)
+
+    # ------------------------
+    # ARD LENGTH SCALE
+    # ------------------------
+    if ard:
+        length_scale = np.ones(n_features) * length_scale_init
+    else:
+        length_scale = length_scale_init
+
+    # ------------------------
+    # KERNEL CONSTRUCTION
+    # ------------------------
+    if kernel_type == "rbf":
+
+        kernel = RBF(
+            length_scale=length_scale,
+            length_scale_bounds=(length_lower, length_upper)
+        )
+
+    elif kernel_type == "matern":
+
+        kernel = Matern(
+            length_scale=length_scale,
+            length_scale_bounds=(length_lower, length_upper),
+            nu=1.5
+        )
+
+    elif kernel_type == "rq":
+
+        kernel = RationalQuadratic(
+            length_scale=length_scale,
+            alpha=1.0
+        )
+
+    else:
+        raise ValueError("Unsupported kernel type")
+
+    kernel += WhiteKernel(noise_level=noise_level)
 
     gpr = GaussianProcessRegressor(
         kernel=kernel,
-        alpha=1e-6,    
+        alpha=alpha,
         normalize_y=True,
-        n_restarts_optimizer=5,
-        random_state=0,
+        n_restarts_optimizer=restarts,
+        random_state=0
     )
 
     gpr.fit(X_train, y_train)
@@ -186,7 +243,7 @@ def run_gp_pipeline(
         "ranked_features": ranked_features,
         "top_pairs_2d": top_pairs_2d,
         "feature_importance": feature_importance,
-        
+
         # Performance metrics
         "metrics": metrics,
     }

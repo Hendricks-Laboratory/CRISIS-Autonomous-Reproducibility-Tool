@@ -301,8 +301,7 @@ function confirmManual() {
         return;
     }
 
-    document.getElementById("runGprContainer").style.display = "block";
-    nextStep();
+    showStep(5);
 }
 
 function renderDraggable(containerId, columns) {
@@ -433,8 +432,7 @@ function confirmAuto() {
         return;
     }
 
-    document.getElementById("runGprContainer").style.display = "block";
-    nextStep();
+    showStep(5);
 }
 
 /* ==============================
@@ -447,7 +445,8 @@ async function runGPR() {
         target_col: TARGET_COL,
         mode: CURRENT_MODE,
         num_cols: [],
-        cat_cols: []
+        cat_cols: [],
+        kernel_config: {}
     };
 
     if (CURRENT_MODE === "manual") {
@@ -458,8 +457,33 @@ async function runGPR() {
     if (CURRENT_MODE === "auto") {
         payload.num_cols = [...AUTO_NUM];
         payload.cat_cols = [...AUTO_CAT];
-    }
+            }
+    const advToggle = document.getElementById("advancedModeToggle");
+    const advanced = advToggle ? advToggle.checked : false;
 
+    payload.kernel_config = {
+        kernel_type: document.getElementById("kernelType").value,
+        advanced: advanced
+    };
+    if (advanced) {
+        payload.kernel_config.length_scale_init =
+            parseFloat(document.getElementById("lengthScaleInit").value);
+
+        payload.kernel_config.length_scale_lower =
+            parseFloat(document.getElementById("lengthScaleLower").value);
+
+        payload.kernel_config.length_scale_upper =
+            parseFloat(document.getElementById("lengthScaleUpper").value);
+
+        payload.kernel_config.noise_level =
+            parseFloat(document.getElementById("noiseLevel").value);
+
+        payload.kernel_config.alpha =
+            parseFloat(document.getElementById("alphaValue").value);
+
+        payload.kernel_config.restarts =
+            parseInt(document.getElementById("restartCount").value);
+    }
     const statusDiv = document.getElementById("gprStatus");
     const timerDiv = document.getElementById("gprTimer");
     const errorDiv = document.getElementById("gprError");
@@ -664,5 +688,20 @@ function nextCategory() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+
+    // Step initialization
     showStep(1);
+
+    // Advanced mode toggle (safe guard)
+    const advToggle = document.getElementById("advancedModeToggle");
+
+    if (advToggle) {
+        advToggle.addEventListener("change", function() {
+            const adv = document.getElementById("kernelAdvancedSection");
+            if (adv) {
+                adv.style.display = this.checked ? "block" : "none";
+            }
+        });
+    }
+
 });
