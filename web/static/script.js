@@ -22,7 +22,7 @@ let CATEGORY_SLICES = [];
 let CURRENT_STEP = 1;
 
 /* ==============================
-   STEP WIZARD SYSTEM
+   STEP SYSTEM
 ============================== */
 
 function showStep(stepNumber) {
@@ -262,7 +262,6 @@ function selectMode(mode) {
     document.getElementById("featureSelectionArea").style.display = "block";
     document.getElementById("manualSection").style.display = "none";
     document.getElementById("autoSection").style.display = "none";
-    document.getElementById("runGprContainer").style.display = "none";
 
     if (mode === "manual") {
         initManual();
@@ -499,6 +498,8 @@ async function runGPR() {
         timerDiv.innerHTML = `Elapsed: ${seconds}s`;
     }, 1000);
 
+    console.log("Sending kernel config:", payload.kernel_config);
+    
     try {
         const res = await fetch("/run_gpr", {
             method: "POST",
@@ -557,7 +558,7 @@ async function runGPR() {
     }
 }
 /* ==============================
-   PLOTTING (Sequential Category Flow)
+   PLOTTING 
 ============================== */
 
 let CURRENT_SLICE_INDEX = 0;
@@ -635,11 +636,8 @@ async function generatePlot(type) {
     }
 
     const plotArea = document.getElementById("plotArea");
-
-    // 🔥 Clear previous plots (prevents duplicates)
     plotArea.innerHTML = "";
 
-    // 🔥 Support multiple images (1D = many features, 2D = many pairs)
     if (data.images && Array.isArray(data.images)) {
 
         data.images.forEach((imgBase64, index) => {

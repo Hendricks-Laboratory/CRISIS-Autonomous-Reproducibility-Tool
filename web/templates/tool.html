@@ -172,16 +172,12 @@
 
         <div class="nav-buttons">
             <button onclick="prevStep()">Back</button>
-            <button onclick="nextStep()">Continue</button>
         </div>
 
     </div>
-<!-- ========================= -->
-<!-- STEP 5: TRAIN + RESULTS -->
-<!-- ========================= -->
-
+    
 <div id="trainingStep" class="step" style="display:none;">
-<div style="color:red;">IF YOU SEE THIS YOU ARE ON STEP 5</div>
+
     <h2>Step 5: Train & Results</h2>
 
     <div class="card">
@@ -203,7 +199,6 @@
         </div>
 
         <div id="kernelAdvancedSection" style="display:none; margin-top:20px;">
-
             <h4>Advanced Hyperparameters</h4>
 
             <label>Initial Length Scale:
@@ -229,16 +224,12 @@
             <label>Restarts:
                 <input type="number" id="restartCount" value="5">
             </label><br>
-
         </div>
 
         <hr>
-
-        <div id="runGprContainer" style="margin-top:20px;">
-            <button id="runGprBtn" onclick="runGPR()">
-                Run Gaussian Process Regression
-            </button>
-        </div>
+        <button id="runGprBtn" onclick="runGPR()" style="margin-top:20px;">
+            Run Gaussian Process Regression
+        </button>
 
         <div id="gprStatus" style="display:none; margin-top:20px;">
             <strong>Training Gaussian Process Model...</strong>
@@ -250,7 +241,6 @@
         <div id="metrics" style="margin-top:20px;"></div>
         <div id="modelSummary" style="margin-top:20px;"></div>
 
-        <!-- Plot Flow -->
         <div id="plotPrompt" style="display:none; margin-top:20px;">
             <h3>Generate plots?</h3>
             <button onclick="showColorOptions()">Yes</button>

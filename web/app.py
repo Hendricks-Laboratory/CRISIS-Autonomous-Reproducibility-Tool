@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("Agg")
 from helpers import group
-from detect import detectOutliers, controlSensitizingGraph
+from detect import detectOutliers
 from gpr.model import run_gp_pipeline, apply_feature_engineering, auto_detect_features
 from gpr.visualize import plot_1d, plot_2d, plot_3d
 
@@ -129,29 +129,6 @@ def run_gpr():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# -------------------------------
-# GENERATE CONTROL GRAPH
-# -------------------------------
-@app.route("/control_chart", methods=["POST"])
-def control_chart():
-    rep_index = request.json["replicate_index"]
-    output_col = GLOBAL_STATE["grouped"]["output"][0]
-
-    rep = GLOBAL_STATE["grouped"]["replicates"][rep_index]
-
-    result = controlSensitizingGraph(rep, output_col, generateGraph=True)
-    fig = result["figure"]
-
-    img = io.BytesIO()
-    fig.savefig(img, format="png")
-    img.seek(0)
-
-    encoded = base64.b64encode(img.getvalue()).decode()
-
-    return jsonify({
-        "image": encoded,
-        "messages": result["rule_messages"]
-    })
 # -------------------------------
 # AUTO DETECT FEATURES
 # -------------------------------
