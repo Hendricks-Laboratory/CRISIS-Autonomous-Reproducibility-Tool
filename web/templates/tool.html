@@ -201,6 +201,11 @@
         <div id="kernelAdvancedSection" style="display:none; margin-top:20px;">
             <h4>Advanced Hyperparameters</h4>
 
+            <label>
+                <input type="checkbox" id="ardToggle" checked>
+                Use ARD (Automatic Relevance Determination)
+            </label><br>
+
             <label>Initial Length Scale:
                 <input type="number" id="lengthScaleInit" value="1.0" step="0.1">
             </label><br>
@@ -215,6 +220,14 @@
 
             <label>Noise Level:
                 <input type="number" id="noiseLevel" value="0.0001" step="0.0001">
+            </label><br>
+
+            <label>Noise Lower Bound:
+                <input type="number" id="noiseLower" value="1e-8" step="1e-8">
+            </label><br>
+
+            <label>Noise Upper Bound:
+                <input type="number" id="noiseUpper" value="1e-2" step="1e-2">
             </label><br>
 
             <label>Alpha:

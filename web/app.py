@@ -101,7 +101,8 @@ def run_gpr():
                 target_col=target_col,
                 mode="manual",
                 num_cols=data.get("num_cols", []),
-                cat_cols=data.get("cat_cols", [])
+                cat_cols=data.get("cat_cols", []),
+                kernel_config=data.get("kernel_config", None)
             )
 
         # ---------- AUTOMATIC MODE ----------
@@ -111,7 +112,8 @@ def run_gpr():
                 target_col=target_col,
                 mode="auto",
                 num_cols=data.get("num_cols", []),
-                cat_cols=data.get("cat_cols", [])
+                cat_cols=data.get("cat_cols", []),
+                kernel_config=data.get("kernel_config", None)
             )
 
         GLOBAL_STATE["gpr_model"] = result

@@ -465,6 +465,9 @@ async function runGPR() {
         advanced: advanced
     };
     if (advanced) {
+        payload.kernel_config.ard =
+            document.getElementById("ardToggle").checked;
+            
         payload.kernel_config.length_scale_init =
             parseFloat(document.getElementById("lengthScaleInit").value);
 
@@ -476,6 +479,12 @@ async function runGPR() {
 
         payload.kernel_config.noise_level =
             parseFloat(document.getElementById("noiseLevel").value);
+
+        payload.kernel_config.noise_lower =
+            parseFloat(document.getElementById("noiseLower").value);
+
+        payload.kernel_config.noise_upper =
+            parseFloat(document.getElementById("noiseUpper").value);
 
         payload.kernel_config.alpha =
             parseFloat(document.getElementById("alphaValue").value);

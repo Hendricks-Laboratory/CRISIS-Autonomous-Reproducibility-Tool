@@ -121,6 +121,8 @@ def run_gp_pipeline(
     length_lower = 1e-2
     length_upper = 1e2
     noise_level = 1e-4
+    noise_lower = 1e-8
+    noise_upper = 1e-2
     alpha = 1e-6
     restarts = 5
     ard = True  
@@ -130,11 +132,13 @@ def run_gp_pipeline(
         kernel_type = kernel_config.get("kernel_type", "rbf")
 
         if kernel_config.get("advanced", False):
-
+            ard = kernel_config.get("ard", True)
             length_scale_init = kernel_config.get("length_scale_init", 1.0)
             length_lower = kernel_config.get("length_scale_lower", 1e-2)
             length_upper = kernel_config.get("length_scale_upper", 1e2)
             noise_level = kernel_config.get("noise_level", 1e-4)
+            noise_lower = kernel_config.get("noise_lower", 1e-8)
+            noise_upper = kernel_config.get("noise_upper", 1e-2)
             alpha = kernel_config.get("alpha", 1e-6)
             restarts = kernel_config.get("restarts", 5)
 
@@ -145,7 +149,7 @@ def run_gp_pipeline(
         length_scale = np.ones(n_features) * length_scale_init
     else:
         length_scale = length_scale_init
-
+        
     # ------------------------
     # KERNEL CONSTRUCTION
     # ------------------------
@@ -174,7 +178,7 @@ def run_gp_pipeline(
     else:
         raise ValueError("Unsupported kernel type")
 
-    kernel += WhiteKernel(noise_level=noise_level)
+    kernel += WhiteKernel(noise_level=noise_level, noise_level_bounds=(noise_lower, noise_upper))
 
     gpr = GaussianProcessRegressor(
         kernel=kernel,
@@ -185,6 +189,7 @@ def run_gp_pipeline(
     )
 
     gpr.fit(X_train, y_train)
+ 
     y_pred = gpr.predict(X_test)
 
     # ---------- FEATURE IMPORTANCE ----------
@@ -194,14 +199,14 @@ def run_gp_pipeline(
     if len(num_cols) > 0:
 
         length_scales = gpr.kernel_.k1.length_scale
-        numeric_length_scales = length_scales[:len(num_cols)]
-
-        importance = 1.0 / numeric_length_scales
-        importance_dict = dict(zip(num_cols, importance))
-        importance_sorted = sorted(
-            importance_dict.items(),
-            key=lambda x: -x[1]
-        )
+        if np.isscalar(length_scales):
+            # ARD off
+            feature_importance = []
+        else:
+            numeric_length_scales = length_scales[:len(num_cols)]
+            importance = 1.0 / numeric_length_scales
+            importance_dict = dict(zip(num_cols, importance))
+            importance_sorted = sorted(importance_dict.items(), key=lambda x: -x[1])
 
         ranked_features = [k for k, _ in importance_sorted]
         # Save full importance with values
