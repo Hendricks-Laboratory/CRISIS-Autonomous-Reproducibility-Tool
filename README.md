@@ -80,34 +80,34 @@ Typical use cases include:
 ## Installation
 
 Clone the repository:
-git clone https://github.com/Hendricks-Laboratory/CRISIS-Autonomous-Reproducibility-Tool
+- git clone https://github.com/Hendricks-Laboratory/CRISIS-Autonomous-Reproducibility-Tool
 
 Install the required dependencies:
-pip install -r requirements.txt
+- pip install -r requirements.txt
 
 ---
 
 ## Running the Application
 
 Start the local server:
-python app.py
+- python app.py
 The application will run on a local development server.
 
 Open your browser and navigate to:
-http://127.0.0.1:5000
-or
-http://localhost:5000
+- http://127.0.0.1:5000 or http://localhost:5000
 
 ## Authors
 
 This tool was developed by:
 
-**Audrey Marthin**  
-**Beatrice Archer** 
-**Carl Odegard** 
-Computer Science Capstone Group
+- **Audrey Marthin**  
+- **Beatrice Archer** 
+- **Carl Odegard** 
+Whitman College Computer Science Capstone Group
 
-Adviced by: Professor Mark Hendricks and Professor William Bares
+Adviced by: 
+- **Professor Mark Hendricks**
+- **Professor William Bares**
 Additional contributions and feedback provided by research collaborators.
 
 ---
