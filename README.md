@@ -98,12 +98,11 @@ Open your browser and navigate to:
 
 ## Authors
 
-This tool was developed by:
+This tool was developed by Whitman College Computer Science Capstone Group:
 
 - **Audrey Marthin**  
 - **Beatrice Archer** 
 - **Carl Odegard** 
-Whitman College Computer Science Capstone Group
 
 Adviced by: 
 - **Professor Mark Hendricks**
