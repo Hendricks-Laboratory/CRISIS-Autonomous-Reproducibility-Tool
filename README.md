@@ -107,6 +107,7 @@ This tool was developed by Whitman College Computer Science Capstone Group:
 Adviced by: 
 - **Professor Mark Hendricks**
 - **Professor William Bares**
+
 Additional contributions and feedback provided by research collaborators.
 
 ---
