@@ -1,3 +1,17 @@
+# =============================================================================
+# backend/functions.py
+#
+# Core GPR functions: replicate grouping, GP fitting, and plot generation.
+# These are the low-level building blocks called by supporting_functions.py.
+#
+# Functions:
+#   group()              — aggregate replicates into mean/std/count per condition
+#   fit_gp()             — fit a GaussianProcessRegressor and return metrics
+#   get_color_palette()  — return color palette and colormap for a given scheme
+#   plot_gp()            — 1D GP plot with confidence interval
+#   plot_gp_2d()         — 2D GP contour plots for mean and uncertainty
+# =============================================================================
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,6 +21,26 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 def group(data, controlVars, outputVar, blockVar=None, outlierSD=None):
+    """
+    Aggregate replicate rows into per-group summary statistics.
+
+    Groups rows by controlVars (and optionally blockVar), then computes the
+    mean, std, and count of outputVar within each group. Groups with fewer
+    than 2 replicates are dropped.
+
+    Args:
+        data (pd.DataFrame): Input dataframe with raw replicate rows.
+        controlVars (list[str]): Columns that define a unique experimental condition.
+        outputVar (str): Column containing the measurement to summarize.
+        blockVar (str | None): Optional blocking variable. When provided, the
+            return value is a dict keyed by block level rather than a DataFrame.
+        outlierSD (float | None): If set, replicates more than this many standard
+            deviations from the group mean are removed before summarizing.
+
+    Returns:
+        pd.DataFrame | dict[Any, pd.DataFrame]: Summary DataFrame (or dict of
+        DataFrames keyed by block) with columns: controlVars, mean, std, count.
+    """
     groups = []
     dropped_groups = []
 
@@ -57,6 +91,22 @@ def group(data, controlVars, outputVar, blockVar=None, outlierSD=None):
     }
 
 def fit_gp(df, controlVars, kernel=None, outputVar=None, logVars=None, noise="std"):
+    """
+    Fit a GaussianProcessRegressor to the provided data.
+
+    Args:
+        df (pd.DataFrame): Grouped or raw dataframe; must contain controlVars and outputVar.
+        controlVars (list[str]): Feature columns used as GP inputs.
+        kernel: sklearn kernel object. Defaults to ConstantKernel × ARD-RBF.
+        outputVar (str | None): Target column. Falls back to "mean" if None.
+        logVars (list[str]): Columns to log10-transform before fitting.
+        noise (str): Alpha strategy — "std" uses per-group variance, "sem" uses
+            standard error of the mean, "constant" uses a fixed scalar (5e-2).
+
+    Returns:
+        tuple[GaussianProcessRegressor, dict]: Fitted GP and a metrics dict
+        with keys r2, mae, rmse evaluated on the training set.
+    """
     logVars = logVars or []
 
     X = df[controlVars].copy().astype(float)
@@ -105,6 +155,7 @@ def fit_gp(df, controlVars, kernel=None, outputVar=None, logVars=None, noise="st
 
 
 def get_color_palette(color_scheme="default"):
+    """Return (palette_1d, cmap_2d) for the requested color scheme."""
     if color_scheme == "colorblind":
         palette_1d = ["#E69F00", "#56B4E9", "#009E73", "#F0E442"]
         cmap_2d = plt.cm.cividis      # perceptually uniform + colorblind-safe
@@ -118,6 +169,21 @@ def get_color_palette(color_scheme="default"):
 
 
 def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None, title=None, color_scheme="default"):
+    """
+    Generate a 1D GP plot: scatter of training data + predicted mean ± 95% CI.
+
+    Args:
+        df (pd.DataFrame): Training dataframe (post-grouping in std mode).
+        gp: Fitted GaussianProcessRegressor.
+        controlVars (list[str]): GP input columns.
+        xVar (str): Column to vary along the x-axis.
+        yVar (str): Column to plot as the observed target (default "mean").
+        logVars (list[str]): Columns displayed on a log scale.
+        fixedVals (dict): Values to hold constant for non-xVar control vars.
+            When empty, other vars are held at their median.
+        title (str | None): Plot title.
+        color_scheme (str): "default", "colorblind", or "high_contrast".
+    """
     logVars = logVars or []
     fixedVals = fixedVals or {}
 
@@ -176,6 +242,22 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
 
 
 def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_scheme="default"):
+    """
+    Generate 2D GP contour plots: predicted mean and uncertainty over a grid.
+
+    Produces two figures — one for the predicted mean and one for the
+    predictive standard deviation — with training points overlaid.
+
+    Args:
+        df (pd.DataFrame): Training dataframe.
+        gp: Fitted GaussianProcessRegressor.
+        controlVars (list[str]): GP input columns.
+        xVar (str): Column mapped to the x-axis.
+        yVar (str): Column mapped to the y-axis.
+        logVars (list[str]): Columns displayed on a log scale.
+        n_grid (int): Resolution of the prediction grid per axis (default 100).
+        color_scheme (str): "default", "colorblind", or "high_contrast".
+    """
     logVars = logVars or []
 
     _, cmap_2d = get_color_palette(color_scheme)

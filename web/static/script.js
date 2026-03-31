@@ -1,3 +1,24 @@
+/* =============================================================================
+   web/static/script.js
+
+   Front-end logic for the GPR Research Platform.
+   Manages the 4-step analysis flow: upload → feature engineering →
+   mode/feature selection → kernel configuration & training → plotting.
+
+   Sections:
+     STATE                  — module-level variables shared across steps
+     STEP NAVIGATION        — nextStep / prevStep, step visibility helpers
+     UPLOAD                 — CSV upload and column population
+     FEATURE ENGINEERING    — expression builder and column management
+     MODE STEP (3.x)        — std/mean/both mode selection, classify UI,
+                              drag-drop, auto-detect, log vars, output col
+     KERNEL BUILDER HTML    — buildKernelHTML() using <template> in tool.html
+     KERNEL CONTROLS        — type/struct buttons, tuning section toggles
+     KERNEL CONFIG READ     — getKernelConfig() serializes UI to payload
+     RUN GPR                — bounds validation, fetch /run_gpr, metrics display
+     PLOTTING               — dropdown population, color scheme, generatePlot()
+============================================================================= */
+
 /* ==============================
    STATE
 ============================== */

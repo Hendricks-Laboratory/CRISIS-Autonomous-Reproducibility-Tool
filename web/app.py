@@ -1,3 +1,23 @@
+# =============================================================================
+# web/app.py
+#
+# Flask application entry point for the GPR Research Platform.
+# Serves the multi-page UI and exposes the following API routes:
+#
+#   GET  /                    — home page
+#   GET  /tool                — analysis tool page
+#   GET  /methodology         — methodology page
+#   GET  /creators            — creators page
+#   POST /upload              — upload CSV, returns column list
+#   POST /auto_detect_features — classify columns as numeric/categorical
+#   POST /apply_feature       — add a derived column via expression
+#   POST /run_gpr             — fit GP model(s), returns metrics
+#   POST /generate_plot       — render plots, returns base64 PNGs
+#
+# GLOBAL_STATE holds the active DataFrame and trained model results
+# for the duration of the session (single-user, in-memory).
+# =============================================================================
+
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -7,14 +27,7 @@ matplotlib.use("Agg")
 import pandas as pd
 from flask import Flask, render_template, request, jsonify
 
-from backend.supporting_functions import (
-    load_dataset,
-    auto_detect_features,
-    apply_feature_engineering,
-    run_gp_pipeline,
-    generate_plot,
-    generate_plot_both,
-)
+from backend.supporting_functions import (load_dataset, auto_detect_features, apply_feature_engineering, run_gp_pipeline, generate_plot, generate_plot_both)
 
 app = Flask(__name__)
 
@@ -24,11 +37,9 @@ GLOBAL_STATE = {
     "mean_model": None,
 }
 
-
 # -------------------------------------------------------
 # PAGES
 # -------------------------------------------------------
-
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -45,13 +56,12 @@ def methodology():
 def creators():
     return render_template("creators.html")
 
-
 # -------------------------------------------------------
 # UPLOAD
 # -------------------------------------------------------
-
 @app.route("/upload", methods=["POST"])
 def upload():
+    """Accept a CSV upload, store the DataFrame in GLOBAL_STATE, return column names."""
     file = request.files["file"]
     df = load_dataset(file)
     GLOBAL_STATE["df"] = df
@@ -59,26 +69,24 @@ def upload():
     GLOBAL_STATE["mean_model"] = None
     return jsonify({"columns": df.columns.tolist()})
 
-
 # -------------------------------------------------------
 # AUTO DETECT FEATURES
 # -------------------------------------------------------
-
 @app.route("/auto_detect_features", methods=["POST"])
 def auto_detect_features_route():
+    """Classify dataset columns as numerical or categorical, excluding the given target."""
     data = request.json
     target_col = data.get("target_col", "")
     df = GLOBAL_STATE["df"]
     result = auto_detect_features(df, target_col)
     return jsonify(result)
 
-
 # -------------------------------------------------------
 # APPLY FEATURE ENGINEERING
 # -------------------------------------------------------
-
 @app.route("/apply_feature", methods=["POST"])
 def apply_feature():
+    """Evaluate a feature engineering expression and update the stored DataFrame."""
     data = request.json
     df = GLOBAL_STATE["df"]
     try:
@@ -88,13 +96,17 @@ def apply_feature():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # -------------------------------------------------------
 # RUN GPR  (mode = std | mean | both)
 # -------------------------------------------------------
-
 @app.route("/run_gpr", methods=["POST"])
 def run_gpr():
+    """
+    Fit GP model(s) and store results in GLOBAL_STATE.
+
+    Accepts mode = "std" | "mean" | "both". Returns metrics and metadata
+    for each trained model.
+    """
     data = request.json
     df = GLOBAL_STATE["df"].copy()
     mode = data.get("mode", "std")
@@ -151,13 +163,16 @@ def run_gpr():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 # -------------------------------------------------------
 # GENERATE PLOT
 # -------------------------------------------------------
-
 @app.route("/generate_plot", methods=["POST"])
 def generate_plot_route():
+    """
+    Render GP plots for the stored model(s) and return base64 PNG images.
+
+    Returns {"images": [...]} for std/mean modes, or {"pairs": [...]} for both mode.
+    """
     data = request.json
     mode = data.get("mode", "std")
     dimension = data.get("plot_type", "1d")
@@ -209,7 +224,6 @@ def generate_plot_route():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -17,22 +17,129 @@
         <a href="/creators">Creators</a>
     </div>
 </nav>
+
 <div class="page-container">
     <div class="content-section">
         <h1>Methodology</h1>
 
-        <h2>Outlier Detection</h2>
+        <h2>Overview</h2>
         <p>
-            Statistical detection of anomalous observations prior to modeling.
+            This platform fits Gaussian Process Regression (GPR) models to experimental data.
+            It supports two analysis modes depending on the structure of your dataset:
+        </p>
+        <ul>
+            <li><strong>Std mode</strong> — designed for datasets with replicate measurements.
+                Observations sharing the same condition variables are grouped, and the GP models
+                the per-group mean or standard deviation.</li>
+            <li><strong>Mean mode</strong> — designed for datasets without replicates.
+                The GP is fit directly to each row, treating each observation independently.</li>
+        </ul>
+        <p>
+            Both modes can be run simultaneously (<strong>Both mode</strong>) to compare
+            replicate-aggregated vs. raw-row modeling on the same dataset.
+        </p>
+
+        <h2>Data Preprocessing</h2>
+        <p>
+            Before fitting, all numerical control variables are standardized using
+            <code>StandardScaler</code> (zero mean, unit variance).
+            Categorical variables are one-hot encoded via <code>pd.get_dummies</code>,
+            and the resulting binary columns are included as control variables.
+        </p>
+        <p>
+            In <strong>Std mode</strong>, the measurement column is also standardized before
+            grouping. In <strong>Mean mode</strong>, the output column is standardized
+            before fitting to improve GP optimization stability.
+        </p>
+        <p>
+            Optional log-transformation can be applied to selected variables prior to fitting.
+            When a variable is log-transformed, prediction grids are generated in log space
+            and the axis is displayed on a log scale.
+        </p>
+
+        <h2>Replicate Grouping (Std Mode)</h2>
+        <p>
+            Rows sharing identical values for all control variables are treated as replicates.
+            Each group is summarized into a single row containing the per-group
+            <strong>mean</strong>, <strong>standard deviation</strong>, and <strong>count</strong>.
+            Groups with fewer than 2 replicates are dropped, as standard deviation is undefined.
+        </p>
+        <p>
+            An optional outlier filter can be applied per group: observations more than
+            <em>k</em> standard deviations from the group mean are excluded before
+            computing summary statistics.
         </p>
 
         <h2>Gaussian Process Regression</h2>
         <p>
-            Kernel: RBF + WhiteKernel  
-            Optimization: 5 restarts  
-            Train/Test Split: 80/20
+            GPR is a non-parametric Bayesian method that places a prior over functions
+            and updates it given observed data. The posterior provides both a predicted
+            mean and a calibrated uncertainty estimate at every point.
+        </p>
+        <p>
+            The default kernel is <code>ConstantKernel × RBF</code> with ARD
+            (Automatic Relevance Determination), using one length scale per input dimension.
+            Hyperparameters are optimized by maximizing the log marginal likelihood,
+            with 5 random restarts to avoid local optima.
+        </p>
+
+        <h3>Kernel Options</h3>
+        <ul>
+            <li><strong>RBF</strong> — Radial Basis Function; assumes infinitely smooth functions.</li>
+            <li><strong>Matérn</strong> — Controls smoothness via the ν parameter
+                (1/2, 3/2, or 5/2); more appropriate for functions with limited differentiability.</li>
+            <li><strong>Rational Quadratic</strong> — Equivalent to an infinite mixture of RBF kernels
+                at different length scales; captures multi-scale variation.</li>
+        </ul>
+
+        <h3>Kernel Structure</h3>
+        <ul>
+            <li><strong>ConstantKernel × base</strong> — scales the output variance of the base kernel.</li>
+            <li><strong>base + WhiteKernel</strong> — adds an explicit iid noise term; useful when
+                observation noise is not already encoded in the alpha parameter.</li>
+        </ul>
+
+        <h3>Noise (Alpha)</h3>
+        <p>
+            In <strong>Std mode</strong>, observation noise is set per data point using the
+            per-group variance estimates:
+        </p>
+        <ul>
+            <li><strong>Std</strong> — alpha = (standard deviation)²</li>
+            <li><strong>SEM</strong> — alpha = (standard deviation / √count)²</li>
+            <li><strong>Constant</strong> — alpha = 0.05 for all points</li>
+        </ul>
+        <p>
+            In <strong>Mean mode</strong>, a constant alpha is always used since individual
+            replicate variance is unavailable.
+        </p>
+
+        <h2>Model Evaluation</h2>
+        <p>
+            Training-set performance is reported using three metrics:
+        </p>
+        <ul>
+            <li><strong>R²</strong> — coefficient of determination; 1.0 is a perfect fit.</li>
+            <li><strong>MAE</strong> — mean absolute error in standardized units.</li>
+            <li><strong>RMSE</strong> — root mean squared error in standardized units.</li>
+        </ul>
+
+        <h2>Visualization</h2>
+        <p>
+            Plots are generated for each unique combination of categorical variable values.
+            An <em>All</em> plot showing all data is always included first.
+        </p>
+        <ul>
+            <li><strong>1D</strong> — GP mean ± 95% confidence interval over a single input variable,
+                with other variables held at their median.</li>
+            <li><strong>2D</strong> — Contour plots of GP predicted mean and uncertainty over two
+                input variables, with remaining variables held at their median.</li>
+        </ul>
+        <p>
+            Three color schemes are available: Default, Colorblind-safe, and High Contrast.
         </p>
     </div>
 </div>
+
 </body>
 </html>

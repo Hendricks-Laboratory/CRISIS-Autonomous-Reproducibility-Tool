@@ -1,3 +1,21 @@
+# =============================================================================
+# backend/supporting_functions.py
+#
+# Pipeline orchestration for the GPR web platform.
+# Sits between the Flask routes and the core functions in functions.py.
+#
+# Functions:
+#   load_dataset()            — load CSV into DataFrame
+#   auto_detect_features()    — classify columns as numeric or categorical
+#   apply_feature_engineering() — evaluate user-defined column expressions
+#   preprocess()              — scale numerics, one-hot encode categoricals,
+#                               build control_vars and category_combos
+#   build_kernel()            — construct an sklearn kernel from a config dict
+#   run_gp_pipeline()         — end-to-end pipeline for std or mean mode
+#   generate_plot()           — render 1D/2D plots and return base64 PNGs
+#   generate_plot_both()      — side-by-side std/mean plot pairs for both mode
+# =============================================================================
+
 import io
 import base64
 import pandas as pd
@@ -14,12 +32,23 @@ from sklearn.preprocessing import StandardScaler
 # DATASET LOADING
 # ======================================================
 def load_dataset(file):
+    """Load a CSV file and return it as a DataFrame."""
     return pd.read_csv(file)
 
 # ======================================================
 # AUTO DETECT NUMERIC / CATEGORICAL
 # ======================================================
 def auto_detect_features(df, target_col):
+    """
+    Classify columns as numerical or categorical, excluding the target.
+
+    Args:
+        df (pd.DataFrame): Input dataframe.
+        target_col (str): Column to exclude from the feature lists.
+
+    Returns:
+        dict: {"num_cols": [...], "cat_cols": [...]}
+    """
     num_cols = df.select_dtypes(include=np.number).columns.tolist()
     if target_col in num_cols:
         num_cols.remove(target_col)
@@ -30,6 +59,22 @@ def auto_detect_features(df, target_col):
 # FEATURE ENGINEERING
 # ======================================================
 def apply_feature_engineering(df, expressions):
+    """
+    Evaluate user-defined column expressions and append them to the dataframe.
+
+    Each expression must be in the form "new_col = formula", where formula can
+    reference existing columns by name and numpy as "np".
+
+    Args:
+        df (pd.DataFrame): Input dataframe.
+        expressions (list[str]): List of "name = formula" strings.
+
+    Returns:
+        pd.DataFrame: Dataframe with new columns added.
+
+    Raises:
+        ValueError: If an expression cannot be evaluated.
+    """
     if not expressions:
         return df
     for expr in expressions:
@@ -92,6 +137,26 @@ def preprocess(df, num_cols, cat_cols, scale_num=True):
 # KERNEL CONFIGURATION
 # ======================================================
 def build_kernel(n_features, kernel_config):
+    """
+    Construct an sklearn kernel from a configuration dict.
+
+    Args:
+        n_features (int): Number of input dimensions; used for ARD length scales.
+        kernel_config (dict | None): Configuration with optional keys:
+            kernel_type (str): "rbf" | "matern" | "rq" (default "rbf")
+            ard (bool): Use per-dimension length scales (default True)
+            length_scale_init (float): Initial length scale value
+            length_scale_bounds (tuple): (lower, upper) bounds for optimization
+            nu (float): Matérn smoothness — 0.5, 1.5, or 2.5
+            rq_alpha_init (float): RationalQuadratic alpha initial value
+            rq_alpha_bounds (tuple): (lower, upper) for RQ alpha
+            white_noise (bool): Use WhiteKernel instead of ConstantKernel wrapper
+            constant_value / constant_bounds: ConstantKernel params
+            noise_level / noise_lower / noise_upper: WhiteKernel params
+
+    Returns:
+        sklearn kernel | None: Constructed kernel, or None if kernel_config is falsy.
+    """
     if not kernel_config:
         return None
 
@@ -186,8 +251,27 @@ def run_gp_pipeline(df, num_cols, cat_cols=None, output_col=None, measurement_co
 # ======================================================
 # PLOT GENERATION
 # ======================================================
-def generate_plot(gp_data, gp, control_vars, dimension, xVar, yVar="mean", logVars=None, 
+def generate_plot(gp_data, gp, control_vars, dimension, xVar, yVar="mean", logVars=None,
                   category_combos=None, color_scheme="default"):
+    """
+    Render GP plots for all category combos and return them as base64 PNG strings.
+
+    Always prepends an "All" plot (no fixedVals) before per-category plots.
+
+    Args:
+        gp_data (pd.DataFrame): Training dataframe passed to plot_gp / plot_gp_2d.
+        gp: Fitted GaussianProcessRegressor.
+        control_vars (list[str]): GP input columns.
+        dimension (str): "1d" or "2d".
+        xVar (str): Column for the x-axis.
+        yVar (str): Target column for 1D scatter (ignored in 2D).
+        logVars (list[str]): Columns on log scale.
+        category_combos (list[dict]): Each entry has "label" and "fixedVals".
+        color_scheme (str): "default", "colorblind", or "high_contrast".
+
+    Returns:
+        list[str]: Base64-encoded PNG images, one per combo.
+    """
     category_combos = category_combos or [{"label": None, "fixedVals": {}}]
     all_combos = [{"label": "All", "fixedVals": {}}] + list(category_combos)
     images = []
