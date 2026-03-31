@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Outlier + GPR Platform</title>
+    <title>GPR Research Platform</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 <nav class="navbar">
-    <div class="nav-left">
-        <span class="brand">GPR Research Platform</span>
-    </div>
+    <div class="nav-left"><span class="brand">GPR Research Platform</span></div>
     <div class="nav-right">
         <a href="/">Home</a>
         <a href="/tool">Tool</a>
@@ -17,268 +15,367 @@
         <a href="/creators">Creators</a>
     </div>
 </nav>
-    <div class="page-container">
-    <h1 class="app-title">ML Outlier + GPR Tool</h1>
 
-    <!-- ========================= -->
-    <!-- STEP 1: UPLOAD -->
-    <!-- ========================= -->
-    <div id="uploadStep" class="step">
+<div class="page-container">
+<h1 class="app-title">Gaussian Process Regression Tool</h1>
 
-        <h2>Step 1: Upload CSV</h2>
-
-        <div class="card center-card">
-            <input type="file" id="fileInput">
-            <button onclick="uploadFile()">Upload</button>
+<!-- ========================= -->
+<!-- STEP 1: UPLOAD            -->
+<!-- ========================= -->
+<div id="uploadStep" class="step">
+    <h2>Step 1: Upload Dataset</h2>
+    <div class="card center-card">
+        <p>Upload a CSV file to get started.</p>
+        <div style="margin-top:20px;">
+            <input type="file" id="fileInput" accept=".csv">
+            <button onclick="uploadFile()" style="margin-left:10px;">Upload</button>
         </div>
-
     </div>
+</div>
 
-    <!-- ========================= -->
-    <!-- STEP 2: COLUMN SELECTION -->
-    <!-- ========================= -->
-    <div id="columnStep" class="step" style="display:none;">
-
-        <h2>Step 2: Column Selection</h2>
-
-        <div class="column-grid">
-
-            <div class="column-card">
-                <h3>Control Columns</h3>
-                <div id="controlColumns"></div>
-            </div>
-
-            <div class="column-card">
-                <h3>Metadata Columns</h3>
-                <div id="metadataColumns"></div>
-            </div>
-
-            <div class="column-card">
-                <h3>Output Columns</h3>
-                <div id="outputColumns"></div>
-            </div>
-
-        </div>
-
-        <div class="nav-buttons">
-            <button onclick="prevStep()">Back</button>
-            <button onclick="confirmColumnSelection()">Continue</button>
-        </div>
-
-    </div>
-
-    <!-- ========================= -->
-    <!-- STEP 3: FEATURE ENGINEERING -->
-    <!-- ========================= -->
-    <div id="featureEngineeringStep" class="step" style="display:none;">
-
-        <h2>Step 3: Feature Engineering</h2>
-
-        <div class="card">
-
-            <p>
-                Create derived features from existing columns to help the model
-                capture nonlinear relationships.
-            </p>
-
-            <code>pressure_ratio = pressure / temperature</code>
-
-            <div style="margin-top:20px;">
-                <input type="text" id="featureInput"
-                    placeholder="new_feature = col1 * col2">
-                <button onclick="addFeature()">Add Feature</button>
-            </div>
-
-            <ul id="featureList"></ul>
-
-        </div>
-
-        <div class="nav-buttons">
-            <button onclick="prevStep()">Back</button>
-            <button onclick="nextStep()">Continue</button>
-        </div>
-
-    </div>
-
-    <!-- ========================= -->
-    <!-- STEP 4: FEATURE SELECTION -->
-    <!-- ========================= -->
-    <div id="featureSelectionStep" class="step" style="display:none;">
-
-        <h2>Step 4: Feature Selection</h2>
-
-        <div class="card">
-
-            <p>Select how features should be chosen for the GPR model.</p>
-
-            <button onclick="selectMode('auto')">Automatic</button>
-            <button onclick="selectMode('manual')">Manual</button>
-
-            <div id="featureSelectionArea" style="display:none; margin-top:20px;">
-
-                <!-- MANUAL -->
-                <div id="manualSection" style="display:none;">
-                    <h3>Manual Assignment</h3>
-
-                    <div class="drag-container">
-                        <div>
-                            <h4>Available Columns</h4>
-                            <ul id="availableColumns" class="dropzone"></ul>
-                        </div>
-
-                        <div>
-                            <h4>Numerical</h4>
-                            <ul id="manualNum" class="dropzone"></ul>
-                        </div>
-
-                        <div>
-                            <h4>Categorical</h4>
-                            <ul id="manualCat" class="dropzone"></ul>
-                        </div>
-                    </div>
-
-                    <button onclick="confirmManual()">Confirm</button>
-                </div>
-
-                <!-- AUTO -->
-                <div id="autoSection" style="display:none;">
-                    <h3>Automatic Detection</h3>
-
-                    <div class="auto-container">
-
-                        <div>
-                            <h4>Numerical</h4>
-                            <ul id="autoNum"></ul>
-                        </div>
-
-                        <div>
-                            <h4>Categorical</h4>
-                            <ul id="autoCat"></ul>
-                        </div>
-
-                    </div>
-
-                    <hr>
-
-                    <h4>Dropped Features</h4>
-                    <ul id="autoDropped"></ul>
-
-                    <button onclick="confirmAuto()">Confirm</button>
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="nav-buttons">
-            <button onclick="prevStep()">Back</button>
-        </div>
-
-    </div>
-    
-<div id="trainingStep" class="step" style="display:none;">
-
-    <h2>Step 5: Train & Results</h2>
-
+<!-- ========================= -->
+<!-- STEP 2: FEATURE ENGINEER  -->
+<!-- ========================= -->
+<div id="featureEngineeringStep" class="step" style="display:none;">
+    <h2>Step 2: Feature Engineering <span class="optional-label">(Optional)</span></h2>
     <div class="card">
-
-        <h3>Model Configuration</h3>
-
-        <label>
-            <input type="checkbox" id="advancedModeToggle">
-            Advanced Mode
-        </label>
-
-        <div id="kernelBasicSection" style="margin-top:15px;">
-            <h4>Kernel</h4>
-            <select id="kernelType">
-                <option value="rbf" selected>RBF (Default)</option>
-                <option value="matern">Matern</option>
-                <option value="rq">Rational Quadratic</option>
-            </select>
+        <p>Create derived features from existing columns.</p>
+        <p class="example-hint">Example: <code>rxn_concentration = concentration * volume</code></p>
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
+            <input type="text" id="featureInput" placeholder="new_col = col1 * col2" style="flex:1;">
+            <button onclick="addFeature()">Add Feature</button>
         </div>
+        <ul id="featureList" style="margin-top:12px;padding-left:20px;color:#94a3b8;"></ul>
+    </div>
+    <div class="nav-buttons">
+        <button onclick="prevStep()">Back</button>
+        <button onclick="goToModeStep()">Continue</button>
+    </div>
+</div>
 
-        <div id="kernelAdvancedSection" style="display:none; margin-top:20px;">
-            <h4>Advanced Hyperparameters</h4>
+<!-- ========================= -->
+<!-- STEP 3: MODE + COLUMNS    -->
+<!-- ========================= -->
+<div id="modeStep" class="step" style="display:none;">
+    <h2>Step 3: Analysis Setup</h2>
 
-            <label>
-                <input type="checkbox" id="ardToggle" checked>
-                Use ARD (Automatic Relevance Determination)
-            </label><br>
-
-            <label>Initial Length Scale:
-                <input type="number" id="lengthScaleInit" value="1.0" step="0.1">
-            </label><br>
-
-            <label>Length Scale Lower Bound:
-                <input type="number" id="lengthScaleLower" value="0.01" step="0.01">
-            </label><br>
-
-            <label>Length Scale Upper Bound:
-                <input type="number" id="lengthScaleUpper" value="100" step="1">
-            </label><br>
-
-            <label>Noise Level:
-                <input type="number" id="noiseLevel" value="0.0001" step="0.0001">
-            </label><br>
-
-            <label>Noise Lower Bound:
-                <input type="number" id="noiseLower" value="1e-8" step="1e-8">
-            </label><br>
-
-            <label>Noise Upper Bound:
-                <input type="number" id="noiseUpper" value="1e-2" step="1e-2">
-            </label><br>
-
-            <label>Alpha:
-                <input type="number" id="alphaValue" value="0.000001" step="0.000001">
-            </label><br>
-
-            <label>Restarts:
-                <input type="number" id="restartCount" value="5">
-            </label><br>
+    <!-- Mode Selection -->
+    <div class="card" style="margin-bottom:20px;">
+        <h3>What would you like to model?</h3>
+        <div id="modeSelector" style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+            <button id="modeBtn_std" class="mode-btn" onclick="selectAnalysisMode('std')">Experimental Uncertainty (Std)</button>
+            <button id="modeBtn_mean" class="mode-btn" onclick="selectAnalysisMode('mean')">Experimental Data (Mean)</button>
+            <button id="modeBtn_both" class="mode-btn" onclick="selectAnalysisMode('both')">Both</button>
         </div>
+    </div>
 
-        <hr>
-        <button id="runGprBtn" onclick="runGPR()" style="margin-top:20px;">
-            Run Gaussian Process Regression
-        </button>
+    <!-- STD SECTION -->
+    <div id="stdSection" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Experimental Uncertainty — Column Setup</h3>
 
-        <div id="gprStatus" style="display:none; margin-top:20px;">
-            <strong>Training Gaussian Process Model...</strong>
-            <div id="gprTimer">Elapsed: 0s</div>
+            <div style="display:flex;gap:40px;flex-wrap:wrap;margin-bottom:20px;">
+                <!-- Replicate columns -->
+                <div style="flex:1;min-width:220px;">
+                    <h4>Replicate Columns <span class="optional-label">(drag here)</span></h4>
+                    <p style="color:#94a3b8;font-size:13px;">Columns that define a unique experimental condition.</p>
+                    <ul id="stdReplicateCols" class="dropzone" style="min-height:120px;"></ul>
+                </div>
+                <!-- Measurement column -->
+                <div style="flex:1;min-width:220px;">
+                    <h4>Measurement Column</h4>
+                    <p style="color:#94a3b8;font-size:13px;">The column being measured (e.g. wavelength). Will be scaled and added to classification.</p>
+                    <select id="stdMeasurementCol" onchange="onMeasurementColChange()" style="width:100%;margin-top:4px;">
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                <!-- Available -->
+                <div style="flex:1;min-width:180px;">
+                    <h4>Available Columns</h4>
+                    <ul id="stdAvailableCols" class="dropzone" style="min-height:120px;"></ul>
+                </div>
+            </div>
+
+            <!-- Classify replicate cols as num/cat -->
+            <div id="stdClassifySection" style="display:none;">
+                <hr style="border-color:rgba(255,255,255,0.1);margin:16px 0;">
+                <h4>Classify Replicate Columns</h4>
+                <p style="color:#94a3b8;font-size:13px;">Numerical columns will be scaled; categorical will be one-hot encoded.</p>
+                <div style="display:flex;gap:30px;flex-wrap:wrap;margin-top:12px;">
+                    <div>
+                        <h4>Numerical</h4>
+                        <ul id="stdNumCols" class="dropzone" style="min-width:160px;min-height:100px;"></ul>
+                    </div>
+                    <div>
+                        <h4>Categorical</h4>
+                        <ul id="stdCatCols" class="dropzone" style="min-width:160px;min-height:100px;"></ul>
+                    </div>
+                    <div>
+                        <h4>Unclassified</h4>
+                        <ul id="stdUnclassified" class="dropzone" style="min-width:160px;min-height:100px;"></ul>
+                    </div>
+                </div>
+                <button onclick="confirmStdClassify()" style="margin-top:14px;">Confirm Classification</button>
+            </div>
+
+            <!-- Log vars -->
+            <div id="stdLogSection" style="display:none;margin-top:20px;">
+                <hr style="border-color:rgba(255,255,255,0.1);margin-bottom:16px;">
+                <h4>Log-Scale Variables</h4>
+                <p style="color:#94a3b8;font-size:13px;">Check any variables spanning multiple orders of magnitude.</p>
+                <div id="stdLogContainer"></div>
+            </div>
+
+            <!-- GP Target -->
+            <div id="stdTargetSection" style="display:none;margin-top:20px;">
+                <hr style="border-color:rgba(255,255,255,0.1);margin-bottom:16px;">
+                <h4>GP Target</h4>
+                <p style="color:#94a3b8;font-size:13px;">Which statistic of the measurement should the GP model?</p>
+                <label style="margin-right:20px;">
+                    <input type="radio" name="stdGpTarget" value="mean" checked> Mean
+                </label>
+                <label>
+                    <input type="radio" name="stdGpTarget" value="std"> Std
+                </label>
+            </div>
         </div>
+    </div>
 
-        <div id="gprError" style="color:red; margin-top:10px;"></div>
+    <!-- MEAN SECTION -->
+    <div id="meanSection" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+            <h3>Experimental Data — Column Setup</h3>
+            <p style="color:#94a3b8;">Select feature columns and classification. No grouping is applied.</p>
 
-        <div id="metrics" style="margin-top:20px;"></div>
-        <div id="modelSummary" style="margin-top:20px;"></div>
+            <div style="margin-top:16px;">
+                <h4>Feature Selection Mode</h4>
+                <div id="meanFeatureModeButtons" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+                    <button onclick="selectMeanMode('auto')">Automatic</button>
+                    <button onclick="selectMeanMode('manual')">Manual</button>
+                </div>
 
-        <div id="plotPrompt" style="display:none; margin-top:20px;">
-            <h3>Generate plots?</h3>
-            <button onclick="showColorOptions()">Yes</button>
-            <button onclick="skipPlots()">No</button>
+                <!-- Auto -->
+                <div id="meanAutoSection" style="display:none;">
+                    <div class="auto-container">
+                        <div><h4>Numerical</h4><ul id="meanAutoNum"></ul></div>
+                        <div><h4>Categorical</h4><ul id="meanAutoCat"></ul></div>
+                    </div>
+                    <div style="margin-top:16px;"><h4>Dropped</h4><ul id="meanAutoDropped"></ul></div>
+                </div>
+
+                <!-- Manual -->
+                <div id="meanManualSection" style="display:none;">
+                    <div class="drag-container">
+                        <div><h4>Available</h4><ul id="meanAvailableCols" class="dropzone"></ul></div>
+                        <div><h4>Numerical</h4><ul id="meanManualNum" class="dropzone"></ul></div>
+                        <div><h4>Categorical</h4><ul id="meanManualCat" class="dropzone"></ul></div>
+                    </div>
+                    <button onclick="confirmMeanManual()" style="margin-top:14px;">Confirm Selection</button>
+                </div>
+            </div>
+
+            <!-- Log vars -->
+            <div id="meanLogSection" style="display:none;margin-top:20px;">
+                <hr style="border-color:rgba(255,255,255,0.1);margin-bottom:16px;">
+                <h4>Log-Scale Variables</h4>
+                <div id="meanLogContainer"></div>
+            </div>
+
+            <!-- GP Target -->
+            <div id="meanTargetSection" style="display:none;margin-top:20px;">
+                <hr style="border-color:rgba(255,255,255,0.1);margin-bottom:16px;">
+                <h4>GP Target</h4>
+                <p style="color:#94a3b8;font-size:13px;">Which column should the GP predict? Selecting this will remove it from the feature lists above.</p>
+                <select id="meanOutputCol" onchange="onMeanOutputColChange()" style="width:100%;max-width:300px;">
+                    <option value="">-- Select Output Column --</option>
+                </select>
+            </div>
         </div>
+    </div>
 
-        <div id="colorOptions" style="display:none; margin-top:20px;">
-            <h4>Select Color Scheme</h4>
-            <button onclick="setColorScheme('default')">Default</button>
-            <button onclick="setColorScheme('colorblind')">Colorblind</button>
-            <button onclick="setColorScheme('high_contrast')">High Contrast</button>
+    <div id="stepErrorSummary" style="display:none;color:#ef4444;margin-top:12px;font-size:14px;"></div>
+
+    <div class="nav-buttons">
+        <button onclick="prevStep()">Back</button>
+        <button onclick="goToTrainingStep()">Continue to Training</button>
+    </div>
+</div>
+
+<!-- ========================= -->
+<!-- STEP 4: TRAINING          -->
+<!-- ========================= -->
+<div id="trainingStep" class="step" style="display:none;">
+    <h2>Step 4: Kernel Building &amp; Training</h2>
+
+    <div id="trainingInner" class="gp-blocks-single">
+
+    <!-- STD GP BLOCK -->
+    <div id="stdGpBlock" style="display:none;">
+        <div class="card" style="margin-bottom:24px;">
+            <h3>Experimental Uncertainty GP</h3>
+            <div id="stdKernelBuilder"></div>
+            <hr style="border-color:rgba(255,255,255,0.1);margin:20px 0;">
+            <div style="margin-bottom:14px;">
+                <label>Noise Estimation:</label><br>
+                <select id="stdNoiseType" style="margin-top:6px;">
+                    <option value="std">Standard Deviation (std)</option>
+                    <option value="sem">Standard Error of Mean (sem)</option>
+                    <option value="constant">Constant</option>
+                </select>
+            </div>
+            <button id="runStdBtn" onclick="runGPR('std')">Run Std GP</button>
+            <div id="stdGprStatus" style="display:none;margin-top:12px;"><strong>Training...</strong>
+                <div id="stdGprTimer" style="color:#94a3b8;"></div>
+            </div>
+            <div id="stdGprError" style="color:#f87171;margin-top:8px;"></div>
+            <div id="stdMetrics" style="margin-top:16px;"></div>
         </div>
+    </div>
 
-        <div id="plotControls" style="display:none; margin-top:20px;"></div>
-        <div id="plotArea" style="margin-top:20px;"></div>
+    <!-- MEAN GP BLOCK -->
+    <div id="meanGpBlock" style="display:none;">
+        <div class="card" style="margin-bottom:24px;">
+            <h3>Experimental Data GP</h3>
+            <div id="meanKernelBuilder"></div>
+            <hr style="border-color:rgba(255,255,255,0.1);margin:20px 0;">
+            <div style="margin-bottom:14px;color:#94a3b8;font-size:14px;">
+                Noise: <strong style="color:#e2e8f0;">Constant</strong>
+            </div>
+            <button id="runMeanBtn" onclick="runGPR('mean')">Run Mean GP</button>
+            <div id="meanGprStatus" style="display:none;margin-top:12px;"><strong>Training...</strong>
+                <div id="meanGprTimer" style="color:#94a3b8;"></div>
+            </div>
+            <div id="meanGprError" style="color:#f87171;margin-top:8px;"></div>
+            <div id="meanMetrics" style="margin-top:16px;"></div>
+        </div>
+    </div>
 
+    </div><!-- end trainingInner -->
+
+    <!-- PLOT SECTION -->
+    <div id="plotSection" style="display:none;margin-top:10px;">
+        <div class="card">
+            <h3>Generate Plots</h3>
+
+            <div style="margin-bottom:20px;">
+                <label>Color Scheme:</label>
+                <div style="display:flex;gap:10px;margin-top:8px;">
+                    <button id="colorBtn_default" class="color-btn active" onclick="setColorScheme('default')">Default</button>
+                    <button id="colorBtn_colorblind" class="color-btn" onclick="setColorScheme('colorblind')">Colorblind Safe</button>
+                    <button id="colorBtn_high_contrast" class="color-btn" onclick="setColorScheme('high_contrast')">High Contrast</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <label>X Variable:</label><br>
+                <select id="xVarSelect" style="margin-top:6px;"></select>
+            </div>
+
+            <div id="yVarRow" style="margin-bottom:20px;display:none;">
+                <label>Y Variable <span style="color:#94a3b8;">(2D only)</span>:</label><br>
+                <select id="yVarSelect" style="margin-top:6px;"></select>
+            </div>
+
+            <div style="display:flex;gap:12px;">
+                <button onclick="generatePlot('1d')">Generate 1D Plot</button>
+                <button onclick="generatePlot('2d')">Generate 2D Plot</button>
+            </div>
+
+            <div id="plotArea" style="margin-top:24px;"></div>
+        </div>
     </div>
 
     <div class="nav-buttons">
         <button onclick="prevStep()">Back</button>
     </div>
+</div>
 
-</div>
-    <div id="controlChart"></div>
-</div>
+</div><!-- end page-container -->
+
+<template id="kernelBuilderTemplate">
+    <h4>Kernel Building</h4>
+
+    <div style="margin-bottom:14px;">
+        <label>Kernel Type:</label><br>
+        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+            <button type="button" id="__P___kernelBtn_rbf" class="kernel-type-btn active" onclick="selectKernelType('__P__','rbf')">RBF</button>
+            <button type="button" id="__P___kernelBtn_matern" class="kernel-type-btn" onclick="selectKernelType('__P__','matern')">Matern</button>
+            <button type="button" id="__P___kernelBtn_rq" class="kernel-type-btn" onclick="selectKernelType('__P__','rq')">Rational Quadratic</button>
+        </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+        <label>
+            <input type="checkbox" id="__P___baseTuning" onchange="toggleBaseTuning('__P__')">
+            <strong>Hyperparameter Tune Base Kernel</strong>
+        </label>
+        <div id="__P___baseTuningSection" style="display:none;margin-top:10px;padding-left:16px;">
+            <div style="margin-bottom:8px;">
+                <label>Length Scale Init: <input type="number" id="__P___lsInit" value="1.0" step="0.1" style="width:90px;margin-left:8px;"></label>
+            </div>
+            <div style="margin-bottom:8px;">
+                <label>Length Scale Bounds:</label>
+                <input type="number" id="__P___lsLower" value="0.5" step="0.1" style="width:80px;margin:0 6px;">
+                to
+                <input type="number" id="__P___lsUpper" value="10" step="1" style="width:80px;margin-left:6px;">
+            </div>
+            <div id="__P___nuSection" style="display:none;margin-bottom:8px;">
+                <label>Nu (Matern):
+                    <select id="__P___nu" style="margin-left:8px;">
+                        <option value="0.5">1/2</option>
+                        <option value="1.5" selected>3/2</option>
+                        <option value="2.5">5/2</option>
+                    </select>
+                </label>
+            </div>
+            <div id="__P___rqSection" style="display:none;margin-bottom:8px;">
+                <label>Alpha Init: <input type="number" id="__P___rqAlphaInit" value="1.0" step="0.1" style="width:80px;margin-left:8px;"></label>
+                <div style="margin-top:6px;">
+                    <label>Alpha Bounds:</label>
+                    <input type="number" id="__P___rqAlphaLower" value="0.01" step="0.01" style="width:80px;margin:0 6px;">
+                    to
+                    <input type="number" id="__P___rqAlphaUpper" value="100" step="1" style="width:80px;margin-left:6px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+        <label>Kernel Structure:</label><br>
+        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+            <button type="button" id="__P___structBtn_constant" class="kernel-type-btn active" onclick="selectKernelStruct('__P__','constant')">ConstantKernel × base</button>
+            <button type="button" id="__P___structBtn_white" class="kernel-type-btn" onclick="selectKernelStruct('__P__','white')">base + WhiteKernel</button>
+        </div>
+    </div>
+
+    <div>
+        <label>
+            <input type="checkbox" id="__P___structTuning" onchange="toggleStructTuning('__P__')">
+            <strong>Hyperparameter Tune Kernel Structure</strong>
+        </label>
+        <div id="__P___structTuningSection" style="display:none;margin-top:10px;padding-left:16px;">
+            <div id="__P___constantTuning">
+                <label>Constant Value: <input type="number" id="__P___constVal" value="1.0" step="0.1" style="width:90px;margin-left:8px;"></label>
+                <div style="margin-top:6px;">
+                    <label>Constant Bounds:</label>
+                    <input type="number" id="__P___constLower" value="0.01" style="width:80px;margin:0 6px;">
+                    to
+                    <input type="number" id="__P___constUpper" value="100" style="width:80px;margin-left:6px;">
+                </div>
+            </div>
+            <div id="__P___whiteTuning" style="display:none;">
+                <label>Noise Level: <input type="number" id="__P___noiseLevel" value="0.0001" step="0.0001" style="width:100px;margin-left:8px;"></label>
+                <div style="margin-top:6px;">
+                    <label>Noise Bounds:</label>
+                    <input type="number" id="__P___noiseLower" value="1e-8" style="width:80px;margin:0 6px;">
+                    to
+                    <input type="number" id="__P___noiseUpper" value="0.01" style="width:80px;margin-left:6px;">
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
 <script src="/static/script.js"></script>
 </body>
 </html>

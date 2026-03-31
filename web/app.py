@@ -1,27 +1,34 @@
-import io
-import base64
-import pandas as pd
-from flask import Flask, render_template, request, jsonify
-from itertools import combinations
-import matplotlib.pyplot as plt
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import matplotlib
 matplotlib.use("Agg")
-from helpers import group
-from detect import detectOutliers
-from gpr.model import run_gp_pipeline, apply_feature_engineering, auto_detect_features
-from gpr.visualize import plot_1d, plot_2d, plot_3d
+
+import pandas as pd
+from flask import Flask, render_template, request, jsonify
+
+from backend.supporting_functions import (
+    load_dataset,
+    auto_detect_features,
+    apply_feature_engineering,
+    run_gp_pipeline,
+    generate_plot,
+    generate_plot_both,
+)
 
 app = Flask(__name__)
 
 GLOBAL_STATE = {
     "df": None,
-    "grouped": None,
-    "gpr_model": None
+    "std_model": None,
+    "mean_model": None,
 }
 
-# -------------------------------
-# HOME
-# -------------------------------
+
+# -------------------------------------------------------
+# PAGES
+# -------------------------------------------------------
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -38,263 +45,171 @@ def methodology():
 def creators():
     return render_template("creators.html")
 
-# -------------------------------
-# UPLOAD CSV
-# -------------------------------
+
+# -------------------------------------------------------
+# UPLOAD
+# -------------------------------------------------------
+
 @app.route("/upload", methods=["POST"])
 def upload():
     file = request.files["file"]
-    df = pd.read_csv(file)
+    df = load_dataset(file)
     GLOBAL_STATE["df"] = df
-
+    GLOBAL_STATE["std_model"] = None
+    GLOBAL_STATE["mean_model"] = None
     return jsonify({"columns": df.columns.tolist()})
 
-# -------------------------------
-# GROUP + DETECT OUTLIERS
-# -------------------------------
-@app.route("/detect", methods=["POST"])
-def detect():
-    data = request.json
-    df = GLOBAL_STATE["df"]
 
-    grouped = group(
-        df,
-        control_cols=data["control_cols"],
-        metadata_cols=data["metadata_cols"],
-        output_cols=data["output_cols"]
-    )
-
-    grouped = detectOutliers(grouped)
-    GLOBAL_STATE["grouped"] = grouped
-
-    outliers_exist = any(
-        rep["is_outlier"].any()
-        for rep in grouped["replicates"]
-    )
-
-    return jsonify({
-        "outliers_detected": outliers_exist
-    })
-
-# -------------------------------
-# RUN GPR
-# -------------------------------
-@app.route("/run_gpr", methods=["POST"])
-def run_gpr():
-    data = request.json
-    df = GLOBAL_STATE["df"].copy()
-
-    try:
-        # ---------- FEATURE ENGINEERING ----------
-        expressions = data.get("expressions", [])
-        if expressions:
-            df = apply_feature_engineering(df, expressions)
-
-        GLOBAL_STATE["df_trained"] = df.copy()
-        mode = data.get("mode", "auto")
-        target_col = data.get("target_col")
-
-        # ---------- MANUAL MODE ----------
-        if mode == "manual":
-            result = run_gp_pipeline(
-                df,
-                target_col=target_col,
-                mode="manual",
-                num_cols=data.get("num_cols", []),
-                cat_cols=data.get("cat_cols", []),
-                kernel_config=data.get("kernel_config", None)
-            )
-
-        # ---------- AUTOMATIC MODE ----------
-        else:
-            result = run_gp_pipeline(
-                df,
-                target_col=target_col,
-                mode="auto",
-                num_cols=data.get("num_cols", []),
-                cat_cols=data.get("cat_cols", []),
-                kernel_config=data.get("kernel_config", None)
-            )
-
-        GLOBAL_STATE["gpr_model"] = result
-
-        return jsonify({
-            "r2": round(result["metrics"]["r2"], 4),
-            "mae": round(result["metrics"]["mae"], 4),
-            "rmse": round(result["metrics"]["rmse"], 4),
-            "feature_count": result["feature_count"],
-            "train_size": result["train_size"],
-            "test_size": result["test_size"],
-            "feature_importance": result["feature_importance"]
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# -------------------------------
+# -------------------------------------------------------
 # AUTO DETECT FEATURES
-# -------------------------------
+# -------------------------------------------------------
+
 @app.route("/auto_detect_features", methods=["POST"])
 def auto_detect_features_route():
-
     data = request.json
-    target_col = data.get("target_col")
-
-    if not target_col:
-        return jsonify({"error": "Target column missing"}), 400
-
+    target_col = data.get("target_col", "")
     df = GLOBAL_STATE["df"]
+    result = auto_detect_features(df, target_col)
+    return jsonify(result)
 
-    import numpy as np
 
-    num_cols = df.select_dtypes(include=np.number).columns.tolist()
-    cat_cols = df.select_dtypes(exclude=np.number).columns.tolist()
-
-    # Remove target from numeric
-    if target_col in num_cols:
-        num_cols.remove(target_col)
-
-    return jsonify({
-        "num_cols": num_cols,
-        "cat_cols": cat_cols
-    })
-
-# -------------------------------
+# -------------------------------------------------------
 # APPLY FEATURE ENGINEERING
-# -------------------------------
+# -------------------------------------------------------
+
 @app.route("/apply_feature", methods=["POST"])
 def apply_feature():
     data = request.json
     df = GLOBAL_STATE["df"]
-
     try:
         df = apply_feature_engineering(df, [data["expression"]])
-        GLOBAL_STATE["df"] = df  # Update global state
+        GLOBAL_STATE["df"] = df
+        return jsonify({"columns": df.columns.tolist()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        return jsonify({
-            "columns": df.columns.tolist()
-        })
+
+# -------------------------------------------------------
+# RUN GPR  (mode = std | mean | both)
+# -------------------------------------------------------
+
+@app.route("/run_gpr", methods=["POST"])
+def run_gpr():
+    data = request.json
+    df = GLOBAL_STATE["df"].copy()
+    mode = data.get("mode", "std")
+
+    try:
+        response = {}
+
+        if mode in ("std", "both"):
+            std_result = run_gp_pipeline(
+                df,
+                num_cols=data.get("std_num_cols", []),
+                cat_cols=data.get("std_cat_cols", []),
+                measurement_col=data.get("measurement_col"),
+                gp_target=data.get("std_gp_target", "mean"),
+                mode="std",
+                logVars=data.get("std_log_vars", []),
+                noise=data.get("std_noise", "std"),
+                kernel_config=data.get("std_kernel_config", None),
+            )
+            GLOBAL_STATE["std_model"] = std_result
+            response["std"] = {
+                "r2": round(std_result["metrics"]["r2"], 4),
+                "mae": round(std_result["metrics"]["mae"], 4),
+                "rmse": round(std_result["metrics"]["rmse"], 4),
+                "control_vars": std_result["control_vars"],
+                "category_combos": [{"label": c["label"]} for c in std_result["category_combos"]],
+                "gp_target": std_result["gp_target"],
+            }
+
+        if mode in ("mean", "both"):
+            mean_result = run_gp_pipeline(
+                df,
+                num_cols=data.get("mean_num_cols", []),
+                cat_cols=data.get("mean_cat_cols", []),
+                output_col=data.get("mean_output_col"),
+                mode="mean",
+                logVars=data.get("mean_log_vars", []),
+                noise="constant",
+                kernel_config=data.get("mean_kernel_config", None),
+            )
+            GLOBAL_STATE["mean_model"] = mean_result
+            response["mean"] = {
+                "r2": round(mean_result["metrics"]["r2"], 4),
+                "mae": round(mean_result["metrics"]["mae"], 4),
+                "rmse": round(mean_result["metrics"]["rmse"], 4),
+                "control_vars": mean_result["control_vars"],
+                "category_combos": [{"label": c["label"]} for c in mean_result["category_combos"]],
+                "gp_target": mean_result["gp_target"],
+            }
+
+        response["mode"] = mode
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/get_category_slices", methods=["POST"])
-def get_category_slices():
 
-    model_data = GLOBAL_STATE["gpr_model"]
-    df = GLOBAL_STATE["df"]
-
-    cat_cols = model_data["cat_cols"]
-
-    if len(cat_cols) > 0:
-        slices = df[cat_cols].drop_duplicates().to_dict(orient="records")
-    else:
-        slices = [{}]
-
-    return jsonify({"slices": slices})
+# -------------------------------------------------------
+# GENERATE PLOT
+# -------------------------------------------------------
 
 @app.route("/generate_plot", methods=["POST"])
-def generate_plot():
-
+def generate_plot_route():
     data = request.json
-
-    model_data = GLOBAL_STATE.get("gpr_model")
-    if not model_data:
-        return jsonify({"error": "Model not found. Run GPR first."})
-
-    gpr = model_data["model"]
-    scaler = model_data["scaler"]
-    encoder = model_data["encoder"]
-    num_cols = model_data["num_cols"]
-
-    df = GLOBAL_STATE["df_trained"]
-
-    target_col = data.get("target_col")
-    if not target_col:
-        return jsonify({"error": "Target column missing."})
-
-    fixed_slice = data.get("slice", {})
-    plot_type = data.get("plot_type")
+    mode = data.get("mode", "std")
+    dimension = data.get("plot_type", "1d")
+    xVar = data.get("x_var")
+    yVar = data.get("y_var")
+    logVars = data.get("log_vars", [])
     color_scheme = data.get("color_scheme", "default")
 
-    if not num_cols:
-        return jsonify({"error": "No numeric features available for plotting."})
-
-    figures = []
-
     try:
+        if mode == "both":
+            std_result = GLOBAL_STATE.get("std_model")
+            mean_result = GLOBAL_STATE.get("mean_model")
+            if not std_result or not mean_result:
+                return jsonify({"error": "Both models required. Run GPR first."}), 400
 
-        # ==========================
-        # 1D PLOTS (ALL NUMERIC)
-        # ==========================
-        if plot_type == "1d":
+            pairs = generate_plot_both(
+                std_result, mean_result,
+                dimension=dimension,
+                xVar=xVar,
+                logVars=logVars,
+                color_scheme=color_scheme
+            )
+            return jsonify({"pairs": pairs, "mode": "both"})
 
-            for feature in num_cols:
-                fig = plot_1d(
-                    gpr, df, num_cols, scaler, encoder,
-                    feature,
-                    fixed_slice,
-                    target_col,
-                    color_scheme=color_scheme
-                )
-                figures.append(fig)
-
-        # ==========================
-        # 2D PLOTS (ALL PAIRS)
-        # ==========================
-        elif plot_type == "2d":
-
-            if len(num_cols) < 2:
-                return jsonify({"error": "Need at least 2 numeric features for 2D plot."})
-
-            for fx, fy in combinations(num_cols, 2):
-                fig = plot_2d(
-                    gpr, df, num_cols, scaler, encoder,
-                    fx, fy,
-                    fixed_slice,
-                    target_col,
-                    color_scheme=color_scheme
-                )
-                figures.append(fig)
-
-        # ==========================
-        # 3D PLOTS (ALL PAIRS)
-        # ==========================
-        elif plot_type == "3d":
-
-            if len(num_cols) < 2:
-                return jsonify({"error": "Need at least 2 numeric features for 3D plot."})
-
-            for fx, fy in combinations(num_cols, 2):
-                fig = plot_3d(
-                    gpr, df, num_cols, scaler, encoder,
-                    fx, fy,
-                    fixed_slice,
-                    target_col,
-                    color_scheme=color_scheme
-                )
-                figures.append(fig)
+        elif mode == "std":
+            model_data = GLOBAL_STATE.get("std_model")
+            if not model_data:
+                return jsonify({"error": "Std model not found. Run GPR first."}), 400
+            yVar = yVar or model_data["gp_target"]
 
         else:
-            return jsonify({"error": "Invalid plot type."})
+            model_data = GLOBAL_STATE.get("mean_model")
+            if not model_data:
+                return jsonify({"error": "Mean model not found. Run GPR first."}), 400
+            yVar = yVar or model_data["gp_target"]
 
-        # ==========================
-        # Convert All Figures
-        # ==========================
-        images = []
-
-        for fig in figures:
-            img = io.BytesIO()
-            fig.savefig(img, format="png", bbox_inches="tight")
-            img.seek(0)
-            encoded = base64.b64encode(img.getvalue()).decode()
-            images.append(encoded)
-            plt.close(fig)
-
-        return jsonify({"images": images})
+        images = generate_plot(
+            gp_data=model_data["gp_data"],
+            gp=model_data["model"],
+            control_vars=model_data["control_vars"],
+            dimension=dimension,
+            xVar=xVar,
+            yVar=yVar,
+            logVars=logVars,
+            category_combos=model_data["category_combos"],
+            color_scheme=color_scheme
+        )
+        return jsonify({"images": images, "mode": mode})
 
     except Exception as e:
-        return jsonify({"error": str(e)})
-    
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)

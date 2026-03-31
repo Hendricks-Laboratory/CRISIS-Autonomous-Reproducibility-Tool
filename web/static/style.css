@@ -277,3 +277,188 @@ textarea {
     font-size: 16px;
     color: #cbd5e1;
 }
+
+/* ====== App Title ====== */
+.app-title {
+    font-size: 28px;
+    color: white;
+    margin-bottom: 10px;
+}
+
+/* ====== Optional Label ====== */
+.optional-label {
+    font-size: 14px;
+    font-weight: 400;
+    color: #64748b;
+}
+
+/* ====== Example Hint ====== */
+.example-hint {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.example-hint code {
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #93c5fd;
+}
+
+/* ====== Center Card ====== */
+.center-card {
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+/* ====== Color Scheme Buttons ====== */
+.color-btn {
+    background: #334155;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.color-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.color-btn:hover {
+    background: #475569;
+}
+
+.color-btn.active:hover {
+    background: #2563eb;
+}
+
+/* ====== Mode Buttons ====== */
+.mode-btn {
+    background: #334155;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.mode-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.mode-btn:hover {
+    background: #475569;
+}
+
+.mode-btn.active:hover {
+    background: #2563eb;
+}
+
+/* ====== Kernel Type Buttons ====== */
+.kernel-type-btn {
+    background: #334155;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.kernel-type-btn.active {
+    background: #0f766e;
+    border-color: #0f766e;
+}
+
+.kernel-type-btn:hover {
+    background: #475569;
+}
+
+.kernel-type-btn.active:hover {
+    background: #0d9488;
+}
+
+/* ====== Plot Grid ====== */
+.plot-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+/* ====== GP Blocks layout ====== */
+.gp-blocks-single {
+    display: block;
+}
+
+.gp-blocks-both {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* ====== Both Mode: Plot Pairs ====== */
+.plot-grid-both {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.plot-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.plot-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.plot-card {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.plot-card img {
+    width: 100%;
+    border-radius: 6px;
+}
+
+/* ====== Metrics display ====== */
+.metrics-box {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0;
+}
+
+#metrics {
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 16px 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    line-height: 1.8;
+}
+
+/* ====== Validation ====== */
+.field-error {
+    border: 2px solid #ef4444 !important;
+    border-radius: 6px;
+}
+
+.error-msg {
+    color: #ef4444;
+    font-size: 13px;
+    margin-top: 4px;
+    display: block;
+}
