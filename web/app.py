@@ -202,12 +202,14 @@ def generate_plot_route():
             if not model_data:
                 return jsonify({"error": "Std model not found. Run GPR first."}), 400
             yVar = yVar or model_data["gp_target"]
+            y_scaler = None
 
         else:
             model_data = GLOBAL_STATE.get("mean_model")
             if not model_data:
                 return jsonify({"error": "Mean model not found. Run GPR first."}), 400
             yVar = yVar or model_data["gp_target"]
+            y_scaler = model_data.get("num_scalers", {}).get(yVar)
 
         images = generate_plot(
             gp_data=model_data["gp_data"],
@@ -218,7 +220,9 @@ def generate_plot_route():
             yVar=yVar,
             logVars=logVars,
             category_combos=model_data["category_combos"],
-            color_scheme=color_scheme
+            color_scheme=color_scheme,
+            num_scalers=model_data.get("num_scalers"),
+            y_scaler=y_scaler
         )
         return jsonify({"images": images, "mode": mode})
 

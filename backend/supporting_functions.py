@@ -252,7 +252,7 @@ def run_gp_pipeline(df, num_cols, cat_cols=None, output_col=None, measurement_co
 # PLOT GENERATION
 # ======================================================
 def generate_plot(gp_data, gp, control_vars, dimension, xVar, yVar="mean", logVars=None,
-                  category_combos=None, color_scheme="default"):
+                  category_combos=None, color_scheme="default", num_scalers=None, y_scaler=None):
     """
     Render GP plots for all category combos and return them as base64 PNG strings.
 
@@ -273,20 +273,27 @@ def generate_plot(gp_data, gp, control_vars, dimension, xVar, yVar="mean", logVa
         list[str]: Base64-encoded PNG images, one per combo.
     """
     category_combos = category_combos or [{"label": None, "fixedVals": {}}]
-    all_combos = [{"label": "All", "fixedVals": {}}] + list(category_combos)
     images = []
 
+    if dimension == "2d":
+        # 2D plots show the full grid — per-category filtering doesn't apply.
+        # plot_gp_2d returns [fig_mean, fig_std], each saved as a separate image.
+        for fig in plot_gp_2d(gp_data, gp, control_vars, xVar, yVar,
+                               logVars=logVars, color_scheme=color_scheme, num_scalers=num_scalers):
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight")
+            buf.seek(0)
+            images.append(base64.b64encode(buf.getvalue()).decode())
+            plt.close(fig)
+        return images
+
+    all_combos = [{"label": "All", "fixedVals": {}}] + list(category_combos)
     for combo in all_combos:
         fixedVals = combo.get("fixedVals", {})
         label = combo.get("label")
-
-        if dimension == "1d":
-            plot_gp(gp_data, gp, control_vars, xVar, yVar=yVar, logVars=logVars, 
-                    fixedVals=fixedVals, title=label, color_scheme=color_scheme)
-        elif dimension == "2d":
-            plot_gp_2d(gp_data, gp, control_vars, xVar, yVar, 
-                       logVars=logVars, color_scheme=color_scheme)
-
+        plot_gp(gp_data, gp, control_vars, xVar, yVar=yVar, logVars=logVars,
+                fixedVals=fixedVals, title=label, color_scheme=color_scheme, num_scalers=num_scalers,
+                y_scaler=y_scaler)
         fig = plt.gcf()
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight")
@@ -322,14 +329,17 @@ def generate_plot_both(std_result, mean_result,
                     logVars=logVars,
                     fixedVals=combo.get("fixedVals", {}),
                     title=combo.get("label"),
-                    color_scheme=color_scheme
+                    color_scheme=color_scheme,
+                    num_scalers=std_result.get("num_scalers"),
+                    y_scaler=None
                 )
             else:
                 yVar2 = mean_result["control_vars"][1] if len(mean_result["control_vars"]) > 1 else xVar
                 plot_gp_2d(
                     std_result["gp_data"], std_result["model"],
                     std_result["control_vars"], xVar, yVar2,
-                    logVars=logVars, color_scheme=color_scheme
+                    logVars=logVars, color_scheme=color_scheme,
+                    num_scalers=std_result.get("num_scalers")
                 )
             fig = plt.gcf()
             buf = io.BytesIO()
@@ -348,14 +358,17 @@ def generate_plot_both(std_result, mean_result,
                     logVars=logVars,
                     fixedVals=combo.get("fixedVals", {}),
                     title=combo.get("label"),
-                    color_scheme=color_scheme
+                    color_scheme=color_scheme,
+                    num_scalers=mean_result.get("num_scalers"),
+                    y_scaler=mean_result.get("num_scalers", {}).get(mean_result["gp_target"])
                 )
             else:
                 yVar2 = mean_result["control_vars"][1] if len(mean_result["control_vars"]) > 1 else xVar
                 plot_gp_2d(
                     mean_result["gp_data"], mean_result["model"],
                     mean_result["control_vars"], xVar, yVar2,
-                    logVars=logVars, color_scheme=color_scheme
+                    logVars=logVars, color_scheme=color_scheme,
+                    num_scalers=mean_result.get("num_scalers")
                 )
             fig = plt.gcf()
             buf = io.BytesIO()

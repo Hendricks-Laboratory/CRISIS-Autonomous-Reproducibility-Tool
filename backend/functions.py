@@ -168,7 +168,7 @@ def get_color_palette(color_scheme="default"):
     return palette_1d, cmap_2d
 
 
-def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None, title=None, color_scheme="default"):
+def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None, title=None, color_scheme="default", num_scalers=None, y_scaler=None):
     """
     Generate a 1D GP plot: scatter of training data + predicted mean ± 95% CI.
 
@@ -218,13 +218,34 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
     for col, val in fixedVals.items():
         plot_df = plot_df[plot_df[col] == val]
 
+    # Inverse transform x-axis to original units if scaler is available
+    if num_scalers and xVar in num_scalers:
+        scaler = num_scalers[xVar]
+        x_plot = scaler.inverse_transform(x_grid.reshape(-1, 1)).ravel()
+        scatter_x = scaler.inverse_transform(plot_df[xVar].to_numpy().reshape(-1, 1)).ravel()
+    else:
+        x_plot = x_grid
+        scatter_x = plot_df[xVar]
+
+    # Inverse transform y-axis to original units if an explicit y_scaler is provided
+    if y_scaler is not None:
+        scatter_y = y_scaler.inverse_transform(plot_df[yVar].to_numpy().reshape(-1, 1)).ravel()
+        y_plot = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        y_lower = y_scaler.inverse_transform((y_pred - 1.96 * y_std).reshape(-1, 1)).ravel()
+        y_upper = y_scaler.inverse_transform((y_pred + 1.96 * y_std).reshape(-1, 1)).ravel()
+    else:
+        scatter_y = plot_df[yVar]
+        y_plot = y_pred
+        y_lower = y_pred - 1.96 * y_std
+        y_upper = y_pred + 1.96 * y_std
+
     plt.figure(figsize=(8, 4))
-    plt.scatter(plot_df[xVar], plot_df[yVar], color=color_scatter, label='Training Data')
-    plt.plot(x_grid, y_pred, color=color_line, label='Predicted Mean')
+    plt.scatter(scatter_x, scatter_y, color=color_scatter, label='Training Data')
+    plt.plot(x_plot, y_plot, color=color_line, label='Predicted Mean')
     plt.fill_between(
-        x_grid,
-        y_pred - 1.96 * y_std,
-        y_pred + 1.96 * y_std,
+        x_plot,
+        y_lower,
+        y_upper,
         color=color_line,
         alpha=0.2,
         label='95% Confidence Interval'
@@ -241,7 +262,7 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
     plt.show()
 
 
-def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_scheme="default"):
+def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_scheme="default", num_scalers=None):
     """
     Generate 2D GP contour plots: predicted mean and uncertainty over a grid.
 
@@ -288,11 +309,26 @@ def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_
     y_pred, y_std = gp.predict(X_pred, return_std=True)
 
     Z_mean = y_pred.reshape(XX.shape)
-    Z_std = y_std.reshape(XX.shape)
+    Z_std  = y_std.reshape(XX.shape)
 
-    plt.figure(figsize=(8, 6))
-    plt.contourf(XX, YY, Z_mean, levels=40, cmap=cmap_2d)
-    plt.scatter(df[xVar], df[yVar], c=df['mean'], edgecolors='k')
+    # Inverse transform axes to original units if scalers are available
+    if num_scalers and xVar in num_scalers:
+        XX_plot = num_scalers[xVar].inverse_transform(XX.ravel().reshape(-1, 1)).reshape(XX.shape)
+        scatter_x = num_scalers[xVar].inverse_transform(df[xVar].to_numpy().reshape(-1, 1)).ravel()
+    else:
+        XX_plot = XX
+        scatter_x = df[xVar]
+
+    if num_scalers and yVar in num_scalers:
+        YY_plot = num_scalers[yVar].inverse_transform(YY.ravel().reshape(-1, 1)).reshape(YY.shape)
+        scatter_y = num_scalers[yVar].inverse_transform(df[yVar].to_numpy().reshape(-1, 1)).ravel()
+    else:
+        YY_plot = YY
+        scatter_y = df[yVar]
+
+    fig_mean = plt.figure(figsize=(8, 6))
+    cf1 = plt.contourf(XX_plot, YY_plot, Z_mean, levels=40, cmap=cmap_2d)
+    plt.scatter(scatter_x, scatter_y, c=df['mean'], cmap=cmap_2d, edgecolors='k')
     if xVar in logVars:
         plt.xscale('log')
     if yVar in logVars:
@@ -300,12 +336,12 @@ def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_
     plt.xlabel(xVar)
     plt.ylabel(yVar)
     plt.title("GP Predicted Mean")
-    plt.colorbar(label='mean')
-    plt.show()
+    plt.colorbar(cf1, label='mean')
+    plt.tight_layout()
 
-    plt.figure(figsize=(8, 6))
-    plt.contourf(XX, YY, Z_std, levels=40)
-    plt.scatter(df[xVar], df[yVar], color='red', edgecolors='k')
+    fig_std = plt.figure(figsize=(8, 6))
+    cf2 = plt.contourf(XX_plot, YY_plot, Z_std, levels=40, cmap=cmap_2d)
+    plt.scatter(scatter_x, scatter_y, c=df['std'], cmap=cmap_2d, edgecolors='k')
     if xVar in logVars:
         plt.xscale('log')
     if yVar in logVars:
@@ -313,5 +349,7 @@ def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_
     plt.xlabel(xVar)
     plt.ylabel(yVar)
     plt.title("GP Uncertainty")
-    plt.colorbar(label='std')
-    plt.show()
+    plt.colorbar(cf2, label='std')
+    plt.tight_layout()
+
+    return [fig_mean, fig_std]

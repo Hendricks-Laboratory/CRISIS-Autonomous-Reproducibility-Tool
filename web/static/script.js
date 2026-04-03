@@ -580,7 +580,6 @@ function toggleStructTuning(prefix) {
 function getKernelConfig(prefix) {
     const baseTuning   = document.getElementById(`${prefix}_baseTuning`).checked;
     const structTuning = document.getElementById(`${prefix}_structTuning`).checked;
-    if (!baseTuning && !structTuning) return null;
 
     const kernelType = ["rbf","matern","rq"].find(t =>
         document.getElementById(`${prefix}_kernelBtn_${t}`)?.classList.contains("active")

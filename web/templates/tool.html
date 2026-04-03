@@ -63,8 +63,8 @@
     <div class="card" style="margin-bottom:20px;">
         <h3>What would you like to model?</h3>
         <div id="modeSelector" style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
-            <button id="modeBtn_std" class="mode-btn" onclick="selectAnalysisMode('std')">Experimental Uncertainty (Std)</button>
-            <button id="modeBtn_mean" class="mode-btn" onclick="selectAnalysisMode('mean')">Experimental Data (Mean)</button>
+            <button id="modeBtn_std" class="mode-btn" onclick="selectAnalysisMode('std')">Experimental Uncertainty (Std/Mean)</button>
+            <button id="modeBtn_mean" class="mode-btn" onclick="selectAnalysisMode('mean')">Experimental Data</button>
             <button id="modeBtn_both" class="mode-btn" onclick="selectAnalysisMode('both')">Both</button>
         </div>
     </div>
@@ -132,7 +132,7 @@
                 <h4>GP Target</h4>
                 <p style="color:#94a3b8;font-size:13px;">Which statistic of the measurement should the GP model?</p>
                 <label style="margin-right:20px;">
-                    <input type="radio" name="stdGpTarget" value="mean" checked> Mean
+                    <input type="radio" name="stdGpTarget" value="mean" checked> Replicate Mean
                 </label>
                 <label>
                     <input type="radio" name="stdGpTarget" value="std"> Std
@@ -261,7 +261,7 @@
                 <label>Color Scheme:</label>
                 <div style="display:flex;gap:10px;margin-top:8px;">
                     <button id="colorBtn_default" class="color-btn active" onclick="setColorScheme('default')">Default</button>
-                    <button id="colorBtn_colorblind" class="color-btn" onclick="setColorScheme('colorblind')">Colorblind Safe</button>
+                    <button id="colorBtn_colorblind" class="color-btn" onclick="setColorScheme('colorblind')">Colorblind</button>
                     <button id="colorBtn_high_contrast" class="color-btn" onclick="setColorScheme('high_contrast')">High Contrast</button>
                 </div>
             </div>
