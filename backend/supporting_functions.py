@@ -22,7 +22,6 @@ import base64
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
 from backend.functions import group, fit_gp, plot_gp, plot_gp_2d
 from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic, ConstantKernel, WhiteKernel
 from sklearn.preprocessing import StandardScaler

@@ -463,6 +463,37 @@ textarea {
     line-height: 1.8;
 }
 
+/* ====== Example Mode ====== */
+.example-banner {
+    background: rgba(15, 118, 110, 0.15);
+    border: 1px solid #0f766e;
+    border-radius: 8px;
+    padding: 12px 18px;
+    color: #5eead4;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.example-banner strong {
+    color: #99f6e4;
+}
+
+.example-mode-btn {
+    background: #0f766e;
+    color: white;
+    border: 1px solid #0d9488;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.example-mode-btn:hover {
+    background: #0d9488;
+}
+
 /* ====== Validation ====== */
 .field-error {
     border: 2px solid #ef4444 !important;

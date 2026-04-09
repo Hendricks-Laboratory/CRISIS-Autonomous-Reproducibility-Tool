@@ -30,6 +30,13 @@
             <input type="file" id="fileInput" accept=".csv">
             <button onclick="uploadFile()" style="margin-left:10px;">Upload</button>
         </div>
+        <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:20px;">
+            <p style="color:#64748b;font-size:14px;margin-bottom:12px;">— or try a pre-loaded example —</p>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                <button onclick="loadExample('1d')" class="example-mode-btn">Try 1D Example</button>
+                <button onclick="loadExample('2d')" class="example-mode-btn">Try 2D Example</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -38,6 +45,7 @@
 <!-- ========================= -->
 <div id="featureEngineeringStep" class="step" style="display:none;">
     <h2>Step 2: Feature Engineering <span class="optional-label">(Optional)</span></h2>
+    <div id="step2ExampleBanner" style="display:none;"></div>
     <div class="card">
         <p>Create derived features from existing columns.</p>
         <p class="example-hint">Example: <code>rxn_concentration = concentration * volume</code></p>
@@ -49,7 +57,7 @@
     </div>
     <div class="nav-buttons">
         <button onclick="prevStep()">Back</button>
-        <button onclick="goToModeStep()">Continue</button>
+        <button onclick="handleStep2Continue()">Continue</button>
     </div>
 </div>
 
@@ -58,6 +66,7 @@
 <!-- ========================= -->
 <div id="modeStep" class="step" style="display:none;">
     <h2>Step 3: Analysis Setup</h2>
+    <div id="step3ExampleBanner" style="display:none;"></div>
 
     <!-- Mode Selection -->
     <div class="card" style="margin-bottom:20px;">
@@ -197,7 +206,7 @@
 
     <div class="nav-buttons">
         <button onclick="prevStep()">Back</button>
-        <button onclick="goToTrainingStep()">Continue to Training</button>
+        <button onclick="handleStep3Continue()">Continue to Training</button>
     </div>
 </div>
 
@@ -206,6 +215,7 @@
 <!-- ========================= -->
 <div id="trainingStep" class="step" style="display:none;">
     <h2>Step 4: Kernel Building &amp; Training</h2>
+    <div id="step4ExampleBanner" style="display:none;"></div>
 
     <div id="trainingInner" class="gp-blocks-single">
 

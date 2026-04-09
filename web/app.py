@@ -15,6 +15,9 @@
 #                                 returns metrics and category combo metadata
 #   POST /generate_plot         — render 1D or 2D GP plots for the stored
 #                                 model(s); returns base64 PNGs
+#   GET  /load_example          — load a bundled example dataset into GLOBAL_STATE;
+#                                 type=1d uses 1d_data.csv,
+#                                 type=2d uses 2d_data.csv
 #
 # GLOBAL_STATE holds the active DataFrame and trained model results for the
 # duration of the session (single-user, in-memory). Models are keyed as
@@ -23,12 +26,9 @@
 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import matplotlib
 matplotlib.use("Agg")
-
 from flask import Flask, render_template, request, jsonify
-
 from backend.supporting_functions import (load_dataset, auto_detect_features, apply_feature_engineering, run_gp_pipeline, generate_plot, generate_plot_both)
 
 app = Flask(__name__)
@@ -285,6 +285,42 @@ def generate_plot_route():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# -------------------------------------------------------
+# LOAD EXAMPLE
+# -------------------------------------------------------
+@app.route("/load_example", methods=["GET"])
+def load_example():
+    """
+    Load a bundled example dataset into GLOBAL_STATE.
+
+    Query params:
+        type (str): "1d" (1d_data.csv) or "2d" (2d_data.csv).
+            Defaults to "1d".
+
+    The 1D example is used with both mode (std + mean) on replicate spectroscopy
+    data. The 2D example is used with mean mode on nanoparticle synthesis data.
+    Feature engineering (e.g. rxn_concentration) is applied client-side via
+    /apply_feature after this endpoint returns the base column list.
+
+    Returns:
+        JSON {"columns": [...]} mirroring the /upload response.
+    """
+    example_type = request.args.get("type", "1d")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    filename = "2d_data.csv" if example_type == "2d" else "1d_data.csv"
+    path = os.path.join(project_root, "example_data", filename)
+
+    try:
+        df = load_dataset(path)
+        GLOBAL_STATE["df"] = df
+        GLOBAL_STATE["std_model"] = None
+        GLOBAL_STATE["mean_model"] = None
+        return jsonify({"columns": df.columns.tolist()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -27,6 +27,7 @@ let ANALYSIS_MODE = null;   // 'std' | 'mean' | 'both'
 let CURRENT_STEP = 1;
 let SELECTED_COLOR = "default";
 let LAST_PLOT_TYPE = null;
+let EXAMPLE_MODE = null;    // '1d' | '2d' | null
 
 // Std GP state
 let STD_NUM_COLS = [];
@@ -64,13 +65,41 @@ function showStep(n) {
 
 function prevStep() {
     if (CURRENT_STEP <= 1) return;
-    // Clear downstream state when going back
+
     if (CURRENT_STEP === 4) {
         clearTrainingState();
+        if (EXAMPLE_MODE) {
+            // Both examples now go step 4 → step 3
+            document.getElementById("step4ExampleBanner").style.display = "none";
+            showStep(3);
+            return;
+        }
     }
+
     if (CURRENT_STEP === 3) {
+        if (EXAMPLE_MODE === "2d") {
+            // 2D skipped step 2 — go back to step 1 and exit example mode
+            EXAMPLE_MODE = null;
+            document.getElementById("step3ExampleBanner").style.display = "none";
+            showStep(1);
+            return;
+        }
+        if (EXAMPLE_MODE === "1d") {
+            // 1D came from step 2 — go back there
+            document.getElementById("step3ExampleBanner").style.display = "none";
+            showStep(2);
+            return;
+        }
         clearModeState();
     }
+
+    if (CURRENT_STEP === 2 && EXAMPLE_MODE === "1d") {
+        // Leaving step 2 back to step 1 — exit example mode and clear feature list
+        EXAMPLE_MODE = null;
+        document.getElementById("step2ExampleBanner").style.display = "none";
+        document.getElementById("featureList").innerHTML = "";
+    }
+
     showStep(CURRENT_STEP - 1);
 }
 
@@ -99,11 +128,224 @@ function clearModeState() {
 }
 
 /* ==============================
+   EXAMPLE MODE
+============================== */
+async function loadExample(type) {
+    EXAMPLE_MODE = type;
+
+    const res = await fetch(`/load_example?type=${type}`);
+    const data = await res.json();
+    if (data.error) { alert("Failed to load example: " + data.error); EXAMPLE_MODE = null; return; }
+    ALL_COLUMNS = data.columns;
+
+    if (type === "1d") {
+        // Auto-apply the feature engineering expression
+        const feRes = await fetch("/apply_feature", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ expression: "rxn_concentration = concentration * volume" })
+        });
+        const feData = await feRes.json();
+        if (feData.error) { alert("Feature engineering failed: " + feData.error); return; }
+        ALL_COLUMNS = feData.columns;
+
+        // Show the applied feature in the list
+        document.getElementById("featureList").innerHTML = "";
+        const li = document.createElement("li");
+        li.textContent = "rxn_concentration = concentration * volume";
+        document.getElementById("featureList").appendChild(li);
+
+        // Show step 2 with example banner
+        const banner = document.getElementById("step2ExampleBanner");
+        banner.innerHTML = `<div class="example-banner">
+            <strong>1D Example loaded</strong> — <code>rxn_concentration = concentration × volume</code> has been added as a derived feature.
+            Everything is pre-configured for <strong>Both Mode</strong> (Std GP + Mean GP) on lambda max wavelength.
+            Just hit <strong>Continue</strong> to proceed.
+        </div>`;
+        banner.style.display = "block";
+        showStep(2);
+
+    } else {
+        // 2D: skip feature engineering, go directly to step 3 fully populated
+        _initStep3Example();
+        showStep(3);
+    }
+}
+
+function handleStep2Continue() {
+    if (EXAMPLE_MODE === "1d") {
+        // Move from step 2 to step 3, fully populated
+        _initStep3Example();
+        showStep(3);
+    } else {
+        goToModeStep();
+    }
+}
+
+function handleStep3Continue() {
+    if (EXAMPLE_MODE) {
+        // State already set by _populateStep3ExampleUI — just build training step
+        setExampleTrainingState();
+        showStep(4);
+    } else {
+        goToTrainingStep();
+    }
+}
+
+/* Populate step 3 UI as if the user made all the choices, then show the banner. */
+function _initStep3Example() {
+    initModeStep();           // reset step 3 to clean state
+    _populateStep3ExampleUI(); // fill in all the UI
+
+    const banner = document.getElementById("step3ExampleBanner");
+    if (EXAMPLE_MODE === "1d") {
+        banner.innerHTML = `<div class="example-banner">
+            <strong>Both Mode pre-configured</strong> — columns assigned below.<br>
+            <strong>Std GP:</strong> groups replicates by rxn_concentration + additive → fits replicate mean of lambda max wavelength.<br>
+            <strong>Mean GP:</strong> rxn_concentration, temp, Minutes_Between_LastAddition_and_Scan + additive → lambda max wavelength.<br>
+            Just hit <strong>Continue to Training</strong>.
+        </div>`;
+    } else {
+        banner.innerHTML = `<div class="example-banner">
+            <strong>Mean Mode pre-configured</strong> — columns assigned below.<br>
+            <strong>Mean GP:</strong> potassium_bromide + silver_nitrate → lambda max wavelength.<br>
+            Just hit <strong>Continue to Training</strong>.
+        </div>`;
+    }
+    banner.style.display = "block";
+}
+
+/* Fill in all step 3 DOM elements and trigger the same confirm functions the user would call. */
+function _populateStep3ExampleUI() {
+    if (EXAMPLE_MODE === "1d") {
+        selectAnalysisMode("both");
+
+        // ── Std section ──────────────────────────────────────────
+        // Select measurement column
+        document.getElementById("stdMeasurementCol").value = "lambda max wavelength";
+        STD_MEASUREMENT_COL = "lambda max wavelength";
+        _exRemove("stdAvailableCols", "lambda max wavelength");
+
+        // Drag rxn_concentration and additive into the replicate cols zone
+        ["rxn_concentration", "additive"].forEach(col => {
+            _exRemove("stdAvailableCols", col);
+            _exAppend("stdReplicateCols", col);
+        });
+
+        // Show classify section and place cols into num / cat lists
+        document.getElementById("stdClassifySection").style.display = "block";
+        _exAppend("stdNumCols", "rxn_concentration");
+        _exAppend("stdCatCols", "additive");
+
+        // Confirm classification — sets STD_NUM_COLS, STD_CAT_COLS, shows log + target sections
+        confirmStdClassify();
+
+        // GP target: replicate mean (already the default radio but be explicit)
+        const meanRadio = document.querySelector('input[name="stdGpTarget"][value="mean"]');
+        if (meanRadio) meanRadio.checked = true;
+
+        // ── Mean section ─────────────────────────────────────────
+        selectMeanMode("manual");
+        ["rxn_concentration", "temp", "Minutes_Between_LastAddition_and_Scan"].forEach(col => {
+            _exAppend("meanManualNum", col);
+        });
+        _exAppend("meanManualCat", "additive");
+
+        // Confirm selection — sets MEAN_NUM_COLS, MEAN_CAT_COLS, shows log + target sections
+        confirmMeanManual();
+
+        document.getElementById("meanOutputCol").value = "lambda max wavelength";
+        onMeanOutputColChange();
+
+    } else {
+        // 2D: mean mode only
+        selectAnalysisMode("mean");
+        selectMeanMode("manual");
+        ["potassium_bromide", "silver_nitrate"].forEach(col => {
+            _exAppend("meanManualNum", col);
+        });
+        confirmMeanManual();
+
+        document.getElementById("meanOutputCol").value = "lambda max wavelength";
+        onMeanOutputColChange();
+    }
+}
+
+/* Append a draggable <li> to a container list. */
+function _exAppend(containerId, col) {
+    const li = document.createElement("li");
+    li.textContent = col;
+    li.draggable = true;
+    document.getElementById(containerId).appendChild(li);
+}
+
+/* Remove a column's <li> from an available-cols list (created by renderDraggableList). */
+function _exRemove(containerId, col) {
+    const el = document.getElementById("col_" + containerId + "_" + col);
+    if (el) el.remove();
+}
+
+function setExampleTrainingState() {
+    clearTrainingState();
+
+    if (EXAMPLE_MODE === "1d") {
+        ANALYSIS_MODE = "both";
+
+        // Std mode: group by rxn_concentration + additive, measure lambda max wavelength, fit replicate mean
+        STD_NUM_COLS        = ["rxn_concentration"];
+        STD_CAT_COLS        = ["additive"];
+        STD_MEASUREMENT_COL = "lambda max wavelength";
+        STD_GP_TARGET       = "mean";
+        STD_LOG_VARS        = [];
+
+        // Mean mode: fit directly on lambda max wavelength using all control features
+        MEAN_NUM_COLS  = ["rxn_concentration", "temp", "Minutes_Between_LastAddition_and_Scan"];
+        MEAN_CAT_COLS  = ["additive"];
+        MEAN_OUTPUT_COL = "lambda max wavelength";
+        MEAN_LOG_VARS   = [];
+
+    } else {
+        // 2D: mean mode — potassium_bromide + silver_nitrate → lambda max wavelength
+        ANALYSIS_MODE  = "mean";
+        MEAN_NUM_COLS  = ["potassium_bromide", "silver_nitrate"];
+        MEAN_CAT_COLS  = [];
+        MEAN_OUTPUT_COL = "lambda max wavelength";
+        MEAN_LOG_VARS   = [];
+    }
+
+    // Build the training step UI (kernel HTML, block visibility, layout)
+    initTrainingStep();
+
+    // Switch kernel buttons to Matern 1.5 for each active block
+    if (ANALYSIS_MODE === "std" || ANALYSIS_MODE === "both") selectKernelType("std", "matern");
+    if (ANALYSIS_MODE === "mean" || ANALYSIS_MODE === "both") selectKernelType("mean", "matern");
+
+    // Show example banner in step 4
+    const banner = document.getElementById("step4ExampleBanner");
+    if (EXAMPLE_MODE === "1d") {
+        banner.innerHTML = `<div class="example-banner">
+            <strong>Both Mode</strong> — pre-configured with real spectroscopy data.<br>
+            <strong>Std GP:</strong> rxn_concentration + additive → lambda max wavelength (replicate mean)<br>
+            <strong>Mean GP:</strong> rxn_concentration, temp, Minutes_Between_LastAddition_and_Scan + additive → lambda max wavelength<br>
+            Kernel: <strong>Matern 1.5</strong>. Hit <strong>Run Std GP</strong> and <strong>Run Mean GP</strong> to train.
+        </div>`;
+    } else {
+        banner.innerHTML = `<div class="example-banner">
+            <strong>Mean Mode (2D)</strong> — pre-configured with nanoparticle synthesis data.<br>
+            <strong>Mean GP:</strong> potassium_bromide + silver_nitrate → lambda max wavelength<br>
+            Kernel: <strong>Matern 1.5</strong>. Hit <strong>Run Mean GP</strong> to train, then generate a 2D plot.
+        </div>`;
+    }
+    banner.style.display = "block";
+}
+
+/* ==============================
    UPLOAD
 ============================== */
 async function uploadFile() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) { alert("Please select a file."); return; }
+    EXAMPLE_MODE = null;
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch("/upload", { method: "POST", body: formData });
