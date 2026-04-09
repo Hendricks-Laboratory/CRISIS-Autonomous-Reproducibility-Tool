@@ -394,6 +394,19 @@ textarea {
     align-items: start;
 }
 
+/* ====== 2D Plot: full width single column ====== */
+.plot-grid-2d {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+}
+
+.plot-grid-2d .plot-card img {
+    width: 100%;
+    max-width: 100%;
+}
+
 /* ====== Both Mode: Plot Pairs ====== */
 .plot-grid-both {
     display: flex;

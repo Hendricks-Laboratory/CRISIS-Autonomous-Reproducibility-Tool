@@ -4,18 +4,21 @@
 # Flask application entry point for the GPR Research Platform.
 # Serves the multi-page UI and exposes the following API routes:
 #
-#   GET  /                    — home page
-#   GET  /tool                — analysis tool page
-#   GET  /methodology         — methodology page
-#   GET  /creators            — creators page
-#   POST /upload              — upload CSV, returns column list
-#   POST /auto_detect_features — classify columns as numeric/categorical
-#   POST /apply_feature       — add a derived column via expression
-#   POST /run_gpr             — fit GP model(s), returns metrics
-#   POST /generate_plot       — render plots, returns base64 PNGs
+#   GET  /                      — home page
+#   GET  /tool                  — analysis tool page
+#   GET  /methodology           — methodology page
+#   GET  /creators              — creators page
+#   POST /upload                — upload CSV, returns column list
+#   POST /auto_detect_features  — classify columns as numeric/categorical
+#   POST /apply_feature         — add a derived column via expression
+#   POST /run_gpr               — fit GP model(s) for std | mean | both mode;
+#                                 returns metrics and category combo metadata
+#   POST /generate_plot         — render 1D or 2D GP plots for the stored
+#                                 model(s); returns base64 PNGs
 #
-# GLOBAL_STATE holds the active DataFrame and trained model results
-# for the duration of the session (single-user, in-memory).
+# GLOBAL_STATE holds the active DataFrame and trained model results for the
+# duration of the session (single-user, in-memory). Models are keyed as
+# "std_model" and "mean_model" and cleared on each new CSV upload.
 # =============================================================================
 
 import sys, os
@@ -24,7 +27,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import matplotlib
 matplotlib.use("Agg")
 
-import pandas as pd
 from flask import Flask, render_template, request, jsonify
 
 from backend.supporting_functions import (load_dataset, auto_detect_features, apply_feature_engineering, run_gp_pipeline, generate_plot, generate_plot_both)
@@ -104,8 +106,16 @@ def run_gpr():
     """
     Fit GP model(s) and store results in GLOBAL_STATE.
 
-    Accepts mode = "std" | "mean" | "both". Returns metrics and metadata
-    for each trained model.
+    Accepts JSON body with mode = "std" | "mean" | "both".
+    In "std" mode, expects std_num_cols, std_cat_cols, measurement_col,
+    std_gp_target ("mean" or "std"), std_log_vars, std_noise, and
+    std_kernel_config. In "mean" mode, expects the mean_* equivalents
+    plus mean_output_col. "both" runs both pipelines in sequence.
+
+    Returns:
+        JSON with a key per mode run ("std", "mean"), each containing
+        r2, mae, rmse, control_vars, category_combos (label only), and
+        gp_target. Also includes "mode" at the top level.
     """
     data = request.json
     df = GLOBAL_STATE["df"].copy()
@@ -171,7 +181,26 @@ def generate_plot_route():
     """
     Render GP plots for the stored model(s) and return base64 PNG images.
 
-    Returns {"images": [...]} for std/mean modes, or {"pairs": [...]} for both mode.
+    Accepts JSON body with:
+        mode (str): "std" | "mean" | "both"
+        plot_type (str): "1d" | "2d"
+        x_var (str): Column for the x-axis.
+        y_var (str | None): 2D y-axis column. In 1D, falls back to gp_target when None.
+        log_vars (list[str]): Columns to display on log scale.
+        color_scheme (str): "default" | "colorblind" | "high_contrast"
+        unscale_std (bool): Whether to unscale the uncertainty (right) panels.
+
+    Unscaling logic applied per mode:
+        std, gp_target="mean": y_scaler and ylabel are both set to the measurement
+            column automatically (replicate mean is always shown in original units).
+        std, gp_target="std":  y_scaler is set only when unscale_std=True.
+        mean: y-axis and 2D left panel always unscaled; uncertainty panel
+            unscaled only when unscale_std=True.
+        both: delegates entirely to generate_plot_both with the same unscale_std flag.
+
+    Returns:
+        JSON with {"images": [...], "mode", "plot_type", "gp_target"} for std/mean,
+        or {"pairs": [...], "mode": "both", "plot_type"} for both mode.
     """
     data = request.json
     mode = data.get("mode", "std")
@@ -180,6 +209,7 @@ def generate_plot_route():
     yVar = data.get("y_var")
     logVars = data.get("log_vars", [])
     color_scheme = data.get("color_scheme", "default")
+    unscale_std = data.get("unscale_std", False)
 
     try:
         if mode == "both":
@@ -193,23 +223,44 @@ def generate_plot_route():
                 dimension=dimension,
                 xVar=xVar,
                 logVars=logVars,
-                color_scheme=color_scheme
+                color_scheme=color_scheme,
+                unscale_std=unscale_std
             )
-            return jsonify({"pairs": pairs, "mode": "both"})
+            return jsonify({"pairs": pairs, "mode": "both", "plot_type": dimension})
 
         elif mode == "std":
             model_data = GLOBAL_STATE.get("std_model")
             if not model_data:
                 return jsonify({"error": "Std model not found. Run GPR first."}), 400
             yVar = yVar or model_data["gp_target"]
-            y_scaler = None
+            num_scalers = model_data.get("num_scalers", {})
+            measurement_col = model_data.get("measurement_col")
+            measurement_scaler = num_scalers.get(measurement_col)
+            z_scaler_mean = measurement_scaler   # always unscale left panel
+            z_scaler_unc = measurement_scaler if unscale_std else None
+            zLabel = model_data["gp_target"]           # column lookup (mean or std)
+            zLabel_display = measurement_col or model_data["gp_target"]  # colorbar text
+            if model_data["gp_target"] == "mean" and measurement_col:
+                y_scaler = measurement_scaler  # auto-unscale 1D replicate mean
+                ylabel = measurement_col
+            else:
+                y_scaler = measurement_scaler if unscale_std else None
+                ylabel = None
 
         else:
             model_data = GLOBAL_STATE.get("mean_model")
             if not model_data:
                 return jsonify({"error": "Mean model not found. Run GPR first."}), 400
             yVar = yVar or model_data["gp_target"]
-            y_scaler = model_data.get("num_scalers", {}).get(yVar)
+            num_scalers = model_data.get("num_scalers", {})
+            output_col = model_data["gp_target"]
+            output_scaler = num_scalers.get(output_col)
+            y_scaler = output_scaler           # 1D y-axis unscale
+            z_scaler_mean = output_scaler      # 2D left panel — always unscale
+            z_scaler_unc = output_scaler if unscale_std else None
+            zLabel = output_col
+            zLabel_display = None
+            ylabel = None
 
         images = generate_plot(
             gp_data=model_data["gp_data"],
@@ -221,10 +272,16 @@ def generate_plot_route():
             logVars=logVars,
             category_combos=model_data["category_combos"],
             color_scheme=color_scheme,
-            num_scalers=model_data.get("num_scalers"),
-            y_scaler=y_scaler
+            num_scalers=num_scalers,
+            y_scaler=y_scaler,
+            z_scaler_mean=z_scaler_mean,
+            z_scaler_unc=z_scaler_unc,
+            gp_target=model_data["gp_target"],
+            zLabel=zLabel,
+            zLabel_display=zLabel_display,
+            ylabel=ylabel
         )
-        return jsonify({"images": images, "mode": mode})
+        return jsonify({"images": images, "mode": mode, "plot_type": dimension, "gp_target": model_data["gp_target"]})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

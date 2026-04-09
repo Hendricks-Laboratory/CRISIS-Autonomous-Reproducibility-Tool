@@ -770,6 +770,8 @@ async function runGPR(which) {
    PLOTTING
 ============================== */
 function populatePlotDropdowns() {
+    document.getElementById("unscaleStdRow").style.display = "block";
+
     const numCols = ANALYSIS_MODE === "mean" ? MEAN_NUM_COLS :
                     ANALYSIS_MODE === "std"  ? STD_NUM_COLS  :
                     [...new Set([...STD_NUM_COLS, ...MEAN_NUM_COLS])];
@@ -807,11 +809,24 @@ async function generatePlot(type) {
     document.getElementById("yVarRow").style.display = type === "2d" ? "block" : "none";
     if (!xVar) { alert("Select an X variable."); return; }
 
+    // Show/hide unscale toggle:
+    // Hide for 1D mean mode (always auto-unscaled)
+    // Hide for 1D std/both mode when gp_target is replicate mean (auto-unscaled)
+    // Always show for 2D
+    const stdIsReplicateMean = STD_GP_TARGET === "mean";
+    const hideFor1d = type === "1d" && (
+        ANALYSIS_MODE === "mean" ||
+        ((ANALYSIS_MODE === "std" || ANALYSIS_MODE === "both") && stdIsReplicateMean)
+    );
+    document.getElementById("unscaleStdRow").style.display = hideFor1d ? "none" : "block";
+
     const logVars = ANALYSIS_MODE === "mean" ? MEAN_LOG_VARS :
                     ANALYSIS_MODE === "std"  ? STD_LOG_VARS  :
                     [...new Set([...STD_LOG_VARS, ...MEAN_LOG_VARS])];
 
     try {
+        const unscaleStd = hideFor1d || document.getElementById("unscaleStdCheck").checked;
+
         const res = await fetch("/generate_plot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -821,7 +836,8 @@ async function generatePlot(type) {
                 x_var: xVar,
                 y_var: yVar,
                 log_vars: logVars,
-                color_scheme: SELECTED_COLOR
+                color_scheme: SELECTED_COLOR,
+                unscale_std: unscaleStd
             })
         });
         const data = await res.json();
@@ -830,25 +846,43 @@ async function generatePlot(type) {
         const plotArea = document.getElementById("plotArea");
         plotArea.innerHTML = "";
 
+        const is2d = data.plot_type === "2d";
+
         if (data.mode === "both") {
             plotArea.className = "plot-grid-both";
             data.pairs.forEach((pair, i) => {
-                plotArea.innerHTML += `
-                    <div class="plot-pair">
-                        <div class="plot-card">
-                            <div class="plot-label">Std GP</div>
-                            <img src="data:image/png;base64,${pair.std}" style="max-width:100%;">
-                            <a href="data:image/png;base64,${pair.std}" download="std_plot_${i+1}.png"><button>Download</button></a>
-                        </div>
-                        <div class="plot-card">
-                            <div class="plot-label">Mean GP</div>
-                            <img src="data:image/png;base64,${pair.mean}" style="max-width:100%;">
-                            <a href="data:image/png;base64,${pair.mean}" download="mean_plot_${i+1}.png"><button>Download</button></a>
-                        </div>
-                    </div>`;
+                if (is2d) {
+                    plotArea.innerHTML += `
+                        <div class="plot-grid-2d">
+                            <div class="plot-card">
+                                <div class="plot-label">Std GP</div>
+                                <img src="data:image/png;base64,${pair.std}" style="width:100%;">
+                                <a href="data:image/png;base64,${pair.std}" download="std_plot_${i+1}.png"><button>Download</button></a>
+                            </div>
+                            <div class="plot-card">
+                                <div class="plot-label">Mean GP</div>
+                                <img src="data:image/png;base64,${pair.mean}" style="width:100%;">
+                                <a href="data:image/png;base64,${pair.mean}" download="mean_plot_${i+1}.png"><button>Download</button></a>
+                            </div>
+                        </div>`;
+                } else {
+                    plotArea.innerHTML += `
+                        <div class="plot-pair">
+                            <div class="plot-card">
+                                <div class="plot-label">Std GP</div>
+                                <img src="data:image/png;base64,${pair.std}" style="max-width:100%;">
+                                <a href="data:image/png;base64,${pair.std}" download="std_plot_${i+1}.png"><button>Download</button></a>
+                            </div>
+                            <div class="plot-card">
+                                <div class="plot-label">Mean GP</div>
+                                <img src="data:image/png;base64,${pair.mean}" style="max-width:100%;">
+                                <a href="data:image/png;base64,${pair.mean}" download="mean_plot_${i+1}.png"><button>Download</button></a>
+                            </div>
+                        </div>`;
+                }
             });
         } else {
-            plotArea.className = "plot-grid";
+            plotArea.className = is2d ? "plot-grid-2d" : "plot-grid";
             data.images.forEach((imgB64, i) => {
                 plotArea.innerHTML += `
                     <div class="plot-card">

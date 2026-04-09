@@ -8,8 +8,9 @@
 #   group()              — aggregate replicates into mean/std/count per condition
 #   fit_gp()             — fit a GaussianProcessRegressor and return metrics
 #   get_color_palette()  — return color palette and colormap for a given scheme
-#   plot_gp()            — 1D GP plot with confidence interval
-#   plot_gp_2d()         — 2D GP contour plots for mean and uncertainty
+#   descale_axis()       — inverse transform a 1D array using a StandardScaler
+#   plot_gp()            — 1D GP plot with scatter, predicted mean, and 95% CI
+#   plot_gp_2d()         — 2D side-by-side GP contour plots (mean + uncertainty)
 # =============================================================================
 
 import matplotlib.pyplot as plt
@@ -155,7 +156,15 @@ def fit_gp(df, controlVars, kernel=None, outputVar=None, logVars=None, noise="st
 
 
 def get_color_palette(color_scheme="default"):
-    """Return (palette_1d, cmap_2d) for the requested color scheme."""
+    """
+    Return (palette_1d, cmap_2d) for the requested color scheme.
+
+    Args:
+        color_scheme (str): "default", "colorblind", or "high_contrast".
+
+    Returns:
+        tuple: (list[str], matplotlib colormap)
+    """
     if color_scheme == "colorblind":
         palette_1d = ["#E69F00", "#56B4E9", "#009E73", "#F0E442"]
         cmap_2d = plt.cm.cividis      # perceptually uniform + colorblind-safe
@@ -168,14 +177,44 @@ def get_color_palette(color_scheme="default"):
     return palette_1d, cmap_2d
 
 
-def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None, title=None, color_scheme="default", num_scalers=None, y_scaler=None):
+def descale_axis(grid_1d, idx, scaler, n_features):
+    """
+    Inverse transform a 1D array for display using a StandardScaler.
+
+    Tries the dummy-matrix approach first (for scalers fit on the full X matrix).
+    Falls back to simple reshape (for per-column scalers fit on shape (n,1)).
+
+    Args:
+        grid_1d (np.ndarray): 1D array of scaled values to inverse transform.
+        idx (int): Column index of this variable in the full feature matrix.
+        scaler: StandardScaler instance, or None (returns grid_1d unchanged).
+        n_features (int): Total number of features in the full feature matrix.
+
+    Returns:
+        np.ndarray: Inverse-transformed values in original units.
+    """
+    if scaler is None:
+        return grid_1d
+    try:
+        dummy = np.zeros((len(grid_1d), n_features))
+        dummy[:, idx] = grid_1d
+        return scaler.inverse_transform(dummy)[:, idx]
+    except ValueError:
+        return scaler.inverse_transform(grid_1d.reshape(-1, 1)).ravel()
+
+
+def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None, title=None,
+            color_scheme="default", x_scaler=None, x_scaler_col=None, y_scaler=None, ylabel=None):
     """
     Generate a 1D GP plot: scatter of training data + predicted mean ± 95% CI.
 
+    All data is plotted in scaled space. x_scaler and y_scaler inverse transform
+    the axis values for display only — the GP and scatter positions are unchanged.
+
     Args:
-        df (pd.DataFrame): Training dataframe (post-grouping in std mode).
+        df (pd.DataFrame): Training dataframe (grouped summary in std mode, raw rows in mean mode).
         gp: Fitted GaussianProcessRegressor.
-        controlVars (list[str]): GP input columns.
+        controlVars (list[str]): GP input columns (scaled).
         xVar (str): Column to vary along the x-axis.
         yVar (str): Column to plot as the observed target (default "mean").
         logVars (list[str]): Columns displayed on a log scale.
@@ -183,6 +222,16 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
             When empty, other vars are held at their median.
         title (str | None): Plot title.
         color_scheme (str): "default", "colorblind", or "high_contrast".
+        x_scaler: StandardScaler for xVar. When provided, inverse transforms the
+            x-axis grid and scatter x positions for display in original units.
+        x_scaler_col (str): Name of the column x_scaler applies to. Must match
+            xVar for the scaler to be applied.
+        y_scaler: StandardScaler for the GP output. When provided, inverse
+            transforms y_pred and y_std for display. Used in mean mode and in
+            std mode when gp_target is replicate mean. None for std target.
+        ylabel (str | None): Override label for the y-axis. Used when gp_target
+            is "mean" in std mode to display the measurement column name instead
+            of "mean".
     """
     logVars = logVars or []
     fixedVals = fixedVals or {}
@@ -191,11 +240,16 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
     color_line = palette[0]
     color_scatter = palette[1]
 
-    x_raw = np.sort(df[xVar].astype(float).unique())
-    x_grid = np.geomspace(x_raw.min(), x_raw.max(), 300) if xVar in logVars else np.linspace(x_raw.min(), x_raw.max(), 300)
+    x_raw_scaled = np.sort(df[xVar].astype(float).unique())
+    x_grid_scaled = np.geomspace(x_raw_scaled.min(), x_raw_scaled.max(), 300) if xVar in logVars else np.linspace(x_raw_scaled.min(), x_raw_scaled.max(), 300)
+
+    if x_scaler is not None and x_scaler_col == xVar:
+        x_grid_display = x_scaler.inverse_transform(x_grid_scaled.reshape(-1, 1)).ravel()
+    else:
+        x_grid_display = x_grid_scaled
 
     X_pred_rows = []
-    for x in x_grid:
+    for x in x_grid_scaled:
         row = {}
         for col in controlVars:
             if col == xVar:
@@ -214,40 +268,33 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
 
     y_pred, y_std = gp.predict(X_pred, return_std=True)
 
+    if y_scaler is not None:
+        y_pred = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
+        y_std = y_std * y_scaler.scale_[0]
+
     plot_df = df.copy()
     for col, val in fixedVals.items():
         plot_df = plot_df[plot_df[col] == val]
 
-    # Inverse transform x-axis to original units if scaler is available
-    if num_scalers and xVar in num_scalers:
-        scaler = num_scalers[xVar]
-        x_plot = scaler.inverse_transform(x_grid.reshape(-1, 1)).ravel()
-        scatter_x = scaler.inverse_transform(plot_df[xVar].to_numpy().reshape(-1, 1)).ravel()
+    if x_scaler is not None and x_scaler_col == xVar:
+        scatter_x = x_scaler.inverse_transform(plot_df[[xVar]]).ravel()
     else:
-        x_plot = x_grid
-        scatter_x = plot_df[xVar]
+        scatter_x = plot_df[xVar].values
 
-    # Inverse transform y-axis to original units if an explicit y_scaler is provided
     if y_scaler is not None:
-        scatter_y = y_scaler.inverse_transform(plot_df[yVar].to_numpy().reshape(-1, 1)).ravel()
-        y_plot = y_scaler.inverse_transform(y_pred.reshape(-1, 1)).ravel()
-        y_lower = y_scaler.inverse_transform((y_pred - 1.96 * y_std).reshape(-1, 1)).ravel()
-        y_upper = y_scaler.inverse_transform((y_pred + 1.96 * y_std).reshape(-1, 1)).ravel()
+        scatter_y = y_scaler.inverse_transform(plot_df[[yVar]]).ravel()
     else:
-        scatter_y = plot_df[yVar]
-        y_plot = y_pred
-        y_lower = y_pred - 1.96 * y_std
-        y_upper = y_pred + 1.96 * y_std
+        scatter_y = plot_df[yVar].values
 
     plt.figure(figsize=(8, 4))
     plt.scatter(scatter_x, scatter_y, color=color_scatter, label='Training Data')
-    plt.plot(x_plot, y_plot, color=color_line, label='Predicted Mean')
+    plt.plot(x_grid_display, y_pred, color=color_line, label='Predicted Mean')
     plt.fill_between(
-        x_plot,
-        y_lower,
-        y_upper,
+        x_grid_display,
+        y_pred - 1.96 * y_std,
+        y_pred + 1.96 * y_std,
         color=color_line,
-        alpha=0.2,
+        alpha=0.35,
         label='95% Confidence Interval'
     )
 
@@ -255,33 +302,54 @@ def plot_gp(df, gp, controlVars, xVar, yVar="mean", logVars=None, fixedVals=None
         plt.xscale('log')
 
     plt.xlabel(xVar)
-    plt.ylabel(yVar)
+    plt.ylabel(ylabel if ylabel is not None else yVar)
     if title:
         plt.title(title)
     plt.legend()
-    plt.show()
+    plt.tight_layout()
 
 
-def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_scheme="default", num_scalers=None):
+def plot_gp_2d(df, gp, controlVars, xVar, yVar, zLabel="mean", zLabel_display=None,
+               logVars=None, x_scaler=None, y_scaler=None, z_scaler_mean=None,
+               z_scaler_unc=None, z_is_log=False, n_grid=100, color_scheme="default"):
     """
-    Generate 2D GP contour plots: predicted mean and uncertainty over a grid.
+    Generate 2D GP contour plots: predicted mean and uncertainty side-by-side.
 
-    Produces two figures — one for the predicted mean and one for the
-    predictive standard deviation — with training points overlaid.
+    Returns a single figure with two subplots (mean left, uncertainty right).
+    Axes are inverse transformed for display using x_scaler and y_scaler.
+    The predicted mean panel (left) is always unscaled via z_scaler_mean.
+    The uncertainty panel (right) is unscaled only when z_scaler_unc is provided.
 
     Args:
         df (pd.DataFrame): Training dataframe.
         gp: Fitted GaussianProcessRegressor.
-        controlVars (list[str]): GP input columns.
+        controlVars (list[str]): GP input columns (scaled).
         xVar (str): Column mapped to the x-axis.
         yVar (str): Column mapped to the y-axis.
+        zLabel (str): Column name in df used for scatter dot color on the mean
+            plot (default "mean"). In std mode this is "mean" or "std";
+            in mean mode this is the output column name.
+        zLabel_display (str | None): Text label shown on the mean panel colorbar.
+            When None, falls back to zLabel. Used in std mode to display the
+            measurement column name instead of "mean"/"std".
         logVars (list[str]): Columns displayed on a log scale.
+        x_scaler: StandardScaler for xVar. Inverse transforms x-axis for display.
+        y_scaler: StandardScaler for yVar. Inverse transforms y-axis for display.
+        z_scaler_mean: StandardScaler for the GP output. Always applied to the
+            predicted mean panel (left subplot) for display in original units.
+        z_scaler_unc: StandardScaler for the GP output uncertainty. Applied to
+            the uncertainty panel (right subplot) only when provided (toggle-controlled).
+        z_is_log (bool): If True, apply exp() after z_scaler_mean inverse transform
+            on the scatter color values.
         n_grid (int): Resolution of the prediction grid per axis (default 100).
         color_scheme (str): "default", "colorblind", or "high_contrast".
+
+    Returns:
+        list[matplotlib.figure.Figure]: Single-element list containing the combined figure.
     """
     logVars = logVars or []
 
-    _, cmap_2d = get_color_palette(color_scheme)
+    palette, cmap_2d = get_color_palette(color_scheme)
 
     x_raw = df[xVar].astype(float).to_numpy()
     y_raw = df[yVar].astype(float).to_numpy()
@@ -306,50 +374,64 @@ def plot_gp_2d(df, gp, controlVars, xVar, yVar, logVars=None, n_grid=100, color_
         if col in logVars:
             X_pred[:, i] = np.log10(X_pred[:, i])
 
-    y_pred, y_std = gp.predict(X_pred, return_std=True)
+    z_pred, z_std = gp.predict(X_pred, return_std=True)
 
-    Z_mean = y_pred.reshape(XX.shape)
-    Z_std  = y_std.reshape(XX.shape)
+    # Left panel (predicted mean): always unscale if z_scaler_mean provided
+    if z_scaler_mean is not None:
+        z_pred = z_scaler_mean.inverse_transform(z_pred.reshape(-1, 1)).ravel()
+    z_pred = np.clip(z_pred, 0, None)
+    Z_mean = z_pred.reshape(XX.shape)
 
-    # Inverse transform axes to original units if scalers are available
-    if num_scalers and xVar in num_scalers:
-        XX_plot = num_scalers[xVar].inverse_transform(XX.ravel().reshape(-1, 1)).reshape(XX.shape)
-        scatter_x = num_scalers[xVar].inverse_transform(df[xVar].to_numpy().reshape(-1, 1)).ravel()
+    # Right panel (uncertainty): unscale only if z_scaler_unc provided (toggle-controlled)
+    if z_scaler_unc is not None:
+        z_std = z_std * z_scaler_unc.scale_[0]
+    Z_unc = z_std.reshape(XX.shape)
+
+    x_idx = controlVars.index(xVar)
+    y_idx = controlVars.index(yVar)
+    n_features = len(controlVars)
+
+    x_display = descale_axis(x_grid, x_idx, x_scaler, n_features)
+    y_display = descale_axis(y_grid, y_idx, y_scaler, n_features)
+    XX_display, YY_display = np.meshgrid(x_display, y_display)
+
+    scatter_x = descale_axis(df[xVar].to_numpy(), x_idx, x_scaler, n_features)
+    scatter_y = descale_axis(df[yVar].to_numpy(), y_idx, y_scaler, n_features)
+
+    if zLabel in df.columns:
+        scatter_z = df[zLabel].to_numpy()
+        if z_scaler_mean is not None:
+            scatter_z = z_scaler_mean.inverse_transform(df[[zLabel]]).ravel()
+            if z_is_log:
+                scatter_z = np.exp(scatter_z)
     else:
-        XX_plot = XX
-        scatter_x = df[xVar]
+        scatter_z = None
 
-    if num_scalers and yVar in num_scalers:
-        YY_plot = num_scalers[yVar].inverse_transform(YY.ravel().reshape(-1, 1)).reshape(YY.shape)
-        scatter_y = num_scalers[yVar].inverse_transform(df[yVar].to_numpy().reshape(-1, 1)).ravel()
-    else:
-        YY_plot = YY
-        scatter_y = df[yVar]
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-    fig_mean = plt.figure(figsize=(8, 6))
-    cf1 = plt.contourf(XX_plot, YY_plot, Z_mean, levels=40, cmap=cmap_2d)
-    plt.scatter(scatter_x, scatter_y, c=df['mean'], cmap=cmap_2d, edgecolors='k')
+    cf1 = axes[0].contourf(XX_display, YY_display, Z_mean, levels=40, cmap=cmap_2d)
+    if scatter_z is not None:
+        axes[0].scatter(scatter_x, scatter_y, c=scatter_z, cmap=cmap_2d, edgecolors='k')
     if xVar in logVars:
-        plt.xscale('log')
+        axes[0].set_xscale('log')
     if yVar in logVars:
-        plt.yscale('log')
-    plt.xlabel(xVar)
-    plt.ylabel(yVar)
-    plt.title("GP Predicted Mean")
-    plt.colorbar(cf1, label='mean')
+        axes[0].set_yscale('log')
+    axes[0].set_xlabel(xVar)
+    axes[0].set_ylabel(yVar)
+    axes[0].set_title("GP Predicted Mean")
+    fig.colorbar(cf1, ax=axes[0], label=zLabel_display if zLabel_display is not None else zLabel)
+
+    cf2 = axes[1].contourf(XX_display, YY_display, Z_unc, levels=40, cmap=cmap_2d)
+    axes[1].scatter(scatter_x, scatter_y, color=palette[1], edgecolors='k')
+    if xVar in logVars:
+        axes[1].set_xscale('log')
+    if yVar in logVars:
+        axes[1].set_yscale('log')
+    axes[1].set_xlabel(xVar)
+    axes[1].set_ylabel(yVar)
+    axes[1].set_title("GP Uncertainty")
+    fig.colorbar(cf2, ax=axes[1], label='std')
+
     plt.tight_layout()
 
-    fig_std = plt.figure(figsize=(8, 6))
-    cf2 = plt.contourf(XX_plot, YY_plot, Z_std, levels=40, cmap=cmap_2d)
-    plt.scatter(scatter_x, scatter_y, c=df['std'], cmap=cmap_2d, edgecolors='k')
-    if xVar in logVars:
-        plt.xscale('log')
-    if yVar in logVars:
-        plt.yscale('log')
-    plt.xlabel(xVar)
-    plt.ylabel(yVar)
-    plt.title("GP Uncertainty")
-    plt.colorbar(cf2, label='std')
-    plt.tight_layout()
-
-    return [fig_mean, fig_std]
+    return [fig]

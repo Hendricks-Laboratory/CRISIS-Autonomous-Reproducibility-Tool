@@ -5,24 +5,23 @@
 # Sits between the Flask routes and the core functions in functions.py.
 #
 # Functions:
-#   load_dataset()            — load CSV into DataFrame
-#   auto_detect_features()    — classify columns as numeric or categorical
+#   load_dataset()              — load CSV into DataFrame
+#   auto_detect_features()      — classify columns as numeric or categorical
 #   apply_feature_engineering() — evaluate user-defined column expressions
-#   preprocess()              — scale numerics, one-hot encode categoricals,
-#                               build control_vars and category_combos
-#   build_kernel()            — construct an sklearn kernel from a config dict
-#   run_gp_pipeline()         — end-to-end pipeline for std or mean mode
-#   generate_plot()           — render 1D/2D plots and return base64 PNGs
-#   generate_plot_both()      — side-by-side std/mean plot pairs for both mode
+#   preprocess()                — scale numerics, one-hot encode categoricals,
+#                                 build control_vars and category_combos
+#   build_kernel()              — construct an sklearn kernel from a config dict
+#   run_gp_pipeline()           — end-to-end pipeline for std or mean mode
+#   _build_combos()             — build full combo list for plot iteration
+#   generate_plot()             — render 1D/2D plots and return base64 PNGs
+#   generate_plot_both()        — side-by-side std/mean plot pairs for both mode
 # =============================================================================
 
 import io
 import base64
 import pandas as pd
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use("Agg")
 
 from backend.functions import group, fit_gp, plot_gp, plot_gp_2d
 from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic, ConstantKernel, WhiteKernel
@@ -96,10 +95,29 @@ def apply_feature_engineering(df, expressions):
 # ======================================================
 def preprocess(df, num_cols, cat_cols, scale_num=True):
     """
-    - Scales num_cols with StandardScaler (optional)
-    - One-hot encodes cat_cols via pd.get_dummies
-    - Builds control_vars = num_cols + dummy_cols
-    - Builds category_combos: list of {label, fixedVals} dicts for plotting
+    Scale numeric columns and one-hot encode categoricals.
+
+    Fits a StandardScaler per numeric column and stores each scaler in
+    num_scalers so that predictions can be inverse-transformed for display.
+    One-hot encodes categoricals via pd.get_dummies and builds a combo list
+    used later to generate per-category plots.
+
+    Args:
+        df (pd.DataFrame): Input dataframe.
+        num_cols (list[str]): Numeric feature columns to scale.
+        cat_cols (list[str]): Categorical columns to one-hot encode.
+        scale_num (bool): Whether to apply StandardScaler to num_cols.
+
+    Returns:
+        tuple:
+            df (pd.DataFrame): Processed dataframe with scaled numerics and
+                dummy columns replacing the originals.
+            control_vars (list[str]): Ordered GP input columns
+                (scaled numerics + dummy columns).
+            category_combos (list[dict]): Each entry has "label" (str | None)
+                and "fixedVals" (dict mapping dummy col → 0/1).
+                Contains a single placeholder entry when cat_cols is empty.
+            num_scalers (dict): Maps column name → fitted StandardScaler.
     """
     df = df.copy()
     num_scalers = {}
@@ -201,11 +219,40 @@ def build_kernel(n_features, kernel_config):
 # ======================================================
 # GPR PIPELINE  (mode = "std" | "mean")
 # ======================================================
-def run_gp_pipeline(df, num_cols, cat_cols=None, output_col=None, measurement_col=None, 
+def run_gp_pipeline(df, num_cols, cat_cols=None, output_col=None, measurement_col=None,
                     gp_target="mean", mode="std", logVars=None, noise="std", kernel_config=None):
     """
-    mode='std'  → group by control_vars on measurement_col, fit GP on gp_target (mean/std)
-    mode='mean' → no grouping, fit GP directly on output_col
+    End-to-end GP pipeline: preprocess → (optionally group) → fit → return results.
+
+    Two modes are supported:
+      - "std": groups replicate measurements by control variables, then fits a GP
+        on either the per-group mean or std of measurement_col.
+      - "mean": skips grouping and fits a GP directly on each row using output_col
+        as the target. Noise is fixed to "constant".
+
+    Args:
+        df (pd.DataFrame): Raw input dataframe.
+        num_cols (list[str]): Numeric feature columns (will be scaled).
+        cat_cols (list[str] | None): Categorical feature columns (will be one-hot encoded).
+        output_col (str | None): Target column for mean mode.
+        measurement_col (str | None): Raw measurement column for std mode.
+        gp_target (str): Which grouped statistic to fit: "mean" or "std" (std mode only).
+        mode (str): "std" or "mean".
+        logVars (list[str] | None): Columns to treat on log scale in fit_gp.
+        noise (str): Noise model for fit_gp — "std" (from grouped std) or "constant".
+        kernel_config (dict | None): Kernel configuration passed to build_kernel.
+
+    Returns:
+        dict with keys:
+            model: Fitted GaussianProcessRegressor.
+            gp_data (pd.DataFrame): Preprocessed (and grouped, in std mode) data.
+            control_vars (list[str]): GP input columns.
+            category_combos (list[dict]): Per-category plot combos.
+            num_scalers (dict): Per-column StandardScalers.
+            metrics (dict): R², MAE, RMSE on training data.
+            gp_target (str): The GP output column ("mean"/"std" in std mode, output_col in mean mode).
+            measurement_col (str | None): Original measurement column (std mode) or None.
+            mode (str): The mode used ("std" or "mean").
     """
     cat_cols = cat_cols or []
     logVars = logVars or []
@@ -245,73 +292,138 @@ def run_gp_pipeline(df, num_cols, cat_cols=None, output_col=None, measurement_co
         "num_scalers": num_scalers,
         "metrics": metrics,
         "gp_target": gp_target if mode == "std" else output_col,
+        "measurement_col": measurement_col if mode == "std" else None,
         "mode": mode,
     }
 
 # ======================================================
 # PLOT GENERATION
 # ======================================================
+def _fig_to_b64(fig):
+    """Save a matplotlib figure to a base64-encoded PNG string and close it."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    buf.seek(0)
+    result = base64.b64encode(buf.getvalue()).decode()
+    plt.close(fig)
+    return result
+
+
+def _build_combos(category_combos):
+    """
+    Build the full combo list for plot iteration.
+    Prepends an 'All' combo only when real categorical combos exist.
+    Avoids duplicating the placeholder combo used when there are no categoricals.
+    """
+    real_cats = [c for c in category_combos if c.get("label") is not None]
+    if real_cats:
+        return [{"label": "All", "fixedVals": {}}] + real_cats
+    return [{"label": None, "fixedVals": {}}]
+
+
 def generate_plot(gp_data, gp, control_vars, dimension, xVar, yVar="mean", logVars=None,
-                  category_combos=None, color_scheme="default", num_scalers=None, y_scaler=None):
+                  category_combos=None, color_scheme="default", num_scalers=None,
+                  y_scaler=None, z_scaler_mean=None, z_scaler_unc=None,
+                  gp_target="mean", zLabel=None, zLabel_display=None, ylabel=None):
     """
     Render GP plots for all category combos and return them as base64 PNG strings.
 
-    Always prepends an "All" plot (no fixedVals) before per-category plots.
+    For 1D plots, iterates over all combos from _build_combos (one image per combo).
+    For 2D plots, calls plot_gp_2d which returns one figure (two panels: mean + uncertainty).
+
+    Unscaling rules:
+      - x-axis: always unscaled via num_scalers[xVar] when available.
+      - y-axis (1D): unscaled when y_scaler is provided. Auto-applied for std mode
+        replicate-mean target and mean mode; toggle-controlled for std uncertainty.
+      - 2D left panel (mean): always unscaled via z_scaler_mean.
+      - 2D right panel (uncertainty): unscaled only when z_scaler_unc is provided
+        (controlled by the "Unscale std axis" checkbox in the UI).
 
     Args:
         gp_data (pd.DataFrame): Training dataframe passed to plot_gp / plot_gp_2d.
         gp: Fitted GaussianProcessRegressor.
         control_vars (list[str]): GP input columns.
         dimension (str): "1d" or "2d".
-        xVar (str): Column for the x-axis.
-        yVar (str): Target column for 1D scatter (ignored in 2D).
-        logVars (list[str]): Columns on log scale.
+        xVar (str): Column for the x-axis (and left axis in 2D).
+        yVar (str): Target column for 1D scatter; right axis variable in 2D.
+        logVars (list[str] | None): Columns to display on log scale.
         category_combos (list[dict]): Each entry has "label" and "fixedVals".
         color_scheme (str): "default", "colorblind", or "high_contrast".
+        num_scalers (dict): Per-column StandardScalers keyed by column name.
+        y_scaler: Scaler for 1D y-axis (None disables unscaling).
+        z_scaler_mean: Scaler for 2D predicted mean panel (always applied when set).
+        z_scaler_unc: Scaler for 2D uncertainty panel (None disables unscaling).
+        gp_target (str): GP output column name used for scatter lookup.
+        zLabel (str | None): Column name used for 2D colorbar lookup. Defaults to gp_target.
+        zLabel_display (str | None): Display text for the 2D colorbar label.
+            If None, falls back to zLabel.
+        ylabel (str | None): Override for 1D y-axis label. Used in std mode when
+            gp_target is "mean" so the label shows the original measurement column name.
 
     Returns:
-        list[str]: Base64-encoded PNG images, one per combo.
+        list[str]: Base64-encoded PNG images, one per category combo (1D) or
+            one per figure returned by plot_gp_2d (2D).
     """
     category_combos = category_combos or [{"label": None, "fixedVals": {}}]
+    num_scalers = num_scalers or {}
+    zLabel = zLabel or gp_target
     images = []
 
     if dimension == "2d":
-        # 2D plots show the full grid — per-category filtering doesn't apply.
-        # plot_gp_2d returns [fig_mean, fig_std], each saved as a separate image.
         for fig in plot_gp_2d(gp_data, gp, control_vars, xVar, yVar,
-                               logVars=logVars, color_scheme=color_scheme, num_scalers=num_scalers):
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches="tight")
-            buf.seek(0)
-            images.append(base64.b64encode(buf.getvalue()).decode())
-            plt.close(fig)
+                               zLabel=zLabel,
+                               zLabel_display=zLabel_display,
+                               logVars=logVars, color_scheme=color_scheme,
+                               x_scaler=num_scalers.get(xVar),
+                               y_scaler=num_scalers.get(yVar),
+                               z_scaler_mean=z_scaler_mean,
+                               z_scaler_unc=z_scaler_unc):
+            images.append(_fig_to_b64(fig))
         return images
 
-    all_combos = [{"label": "All", "fixedVals": {}}] + list(category_combos)
-    for combo in all_combos:
+    for combo in _build_combos(category_combos):
         fixedVals = combo.get("fixedVals", {})
         label = combo.get("label")
         plot_gp(gp_data, gp, control_vars, xVar, yVar=yVar, logVars=logVars,
-                fixedVals=fixedVals, title=label, color_scheme=color_scheme, num_scalers=num_scalers,
-                y_scaler=y_scaler)
-        fig = plt.gcf()
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        buf.seek(0)
-        images.append(base64.b64encode(buf.getvalue()).decode())
-        plt.close(fig)
+                fixedVals=fixedVals, title=label, color_scheme=color_scheme,
+                x_scaler=num_scalers.get(xVar), x_scaler_col=xVar,
+                y_scaler=y_scaler, ylabel=ylabel)
+        images.append(_fig_to_b64(plt.gcf()))
 
     return images
 
 def generate_plot_both(std_result, mean_result,
                        dimension, xVar,
-                       logVars=None, color_scheme="default"):
+                       logVars=None, color_scheme="default", unscale_std=False):
     """
-    For 'both' mode: returns list of image pairs [{std: b64, mean: b64}, ...]
-    one pair per category combo (All + per-category).
+    Render side-by-side std/mean plot pairs for "both" mode.
+
+    Iterates over the longer of the two combo lists and renders one std plot and
+    one mean plot per iteration. plt.close("all") is called before each side to
+    prevent matplotlib figure state from bleeding between renders.
+
+    Unscaling rules:
+      - std side 1D: y-axis auto-unscaled when gp_target is "mean" (replicate mean);
+        unscaled only when unscale_std=True for "std" gp_target.
+      - std side 2D: left panel always unscaled; right panel unscaled when unscale_std=True.
+      - mean side 1D: y-axis always unscaled (output column scaler).
+      - mean side 2D: left panel always unscaled; right panel unscaled when unscale_std=True.
+
+    Args:
+        std_result (dict): Result dict from run_gp_pipeline with mode="std".
+        mean_result (dict): Result dict from run_gp_pipeline with mode="mean".
+        dimension (str): "1d" or "2d".
+        xVar (str): Column for the x-axis.
+        logVars (list[str] | None): Columns to display on log scale.
+        color_scheme (str): "default", "colorblind", or "high_contrast".
+        unscale_std (bool): Whether to unscale the uncertainty (right) panels.
+
+    Returns:
+        list[dict]: Each entry has "std" and/or "mean" keys mapped to base64 PNG strings.
+            One dict per category combo iteration.
     """
-    std_combos = [{"label": "All", "fixedVals": {}}] + list(std_result["category_combos"])
-    mean_combos = [{"label": "All", "fixedVals": {}}] + list(mean_result["category_combos"])
+    std_combos = _build_combos(std_result["category_combos"])
+    mean_combos = _build_combos(mean_result["category_combos"])
 
     pairs = []
     n = max(len(std_combos), len(mean_combos))
@@ -321,6 +433,9 @@ def generate_plot_both(std_result, mean_result,
 
         if i < len(std_combos):
             combo = std_combos[i]
+            std_scalers = std_result.get("num_scalers", {})
+            plt.close("all")  # clear any leftover state before plotting std side
+            measurement_col = std_result.get("measurement_col")
             if dimension == "1d":
                 plot_gp(
                     std_result["gp_data"], std_result["model"],
@@ -330,26 +445,31 @@ def generate_plot_both(std_result, mean_result,
                     fixedVals=combo.get("fixedVals", {}),
                     title=combo.get("label"),
                     color_scheme=color_scheme,
-                    num_scalers=std_result.get("num_scalers"),
-                    y_scaler=None
+                    x_scaler=std_scalers.get(xVar),
+                    x_scaler_col=xVar,
+                    y_scaler=std_scalers.get(measurement_col) if unscale_std else None,
+                    ylabel=measurement_col if std_result["gp_target"] == "mean" and measurement_col else None
                 )
+                fig = plt.gcf()
             else:
-                yVar2 = mean_result["control_vars"][1] if len(mean_result["control_vars"]) > 1 else xVar
-                plot_gp_2d(
+                yVar2 = std_result["control_vars"][1] if len(std_result["control_vars"]) > 1 else xVar
+                fig = plot_gp_2d(
                     std_result["gp_data"], std_result["model"],
                     std_result["control_vars"], xVar, yVar2,
+                    zLabel=std_result["gp_target"],
+                    zLabel_display=measurement_col,
                     logVars=logVars, color_scheme=color_scheme,
-                    num_scalers=std_result.get("num_scalers")
-                )
-            fig = plt.gcf()
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches="tight")
-            buf.seek(0)
-            pair["std"] = base64.b64encode(buf.getvalue()).decode()
-            plt.close(fig)
+                    x_scaler=std_scalers.get(xVar),
+                    y_scaler=std_scalers.get(yVar2),
+                    z_scaler_mean=std_scalers.get(measurement_col),
+                    z_scaler_unc=std_scalers.get(measurement_col) if unscale_std else None
+                )[0]
+            pair["std"] = _fig_to_b64(fig)
 
         if i < len(mean_combos):
             combo = mean_combos[i]
+            mean_scalers = mean_result.get("num_scalers", {})
+            plt.close("all")  # clear any leftover state before plotting mean side
             if dimension == "1d":
                 plot_gp(
                     mean_result["gp_data"], mean_result["model"],
@@ -359,23 +479,24 @@ def generate_plot_both(std_result, mean_result,
                     fixedVals=combo.get("fixedVals", {}),
                     title=combo.get("label"),
                     color_scheme=color_scheme,
-                    num_scalers=mean_result.get("num_scalers"),
-                    y_scaler=mean_result.get("num_scalers", {}).get(mean_result["gp_target"])
+                    x_scaler=mean_scalers.get(xVar),
+                    x_scaler_col=xVar,
+                    y_scaler=mean_scalers.get(mean_result["gp_target"])
                 )
+                fig = plt.gcf()
             else:
                 yVar2 = mean_result["control_vars"][1] if len(mean_result["control_vars"]) > 1 else xVar
-                plot_gp_2d(
+                fig = plot_gp_2d(
                     mean_result["gp_data"], mean_result["model"],
                     mean_result["control_vars"], xVar, yVar2,
+                    zLabel=mean_result["gp_target"],
                     logVars=logVars, color_scheme=color_scheme,
-                    num_scalers=mean_result.get("num_scalers")
-                )
-            fig = plt.gcf()
-            buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches="tight")
-            buf.seek(0)
-            pair["mean"] = base64.b64encode(buf.getvalue()).decode()
-            plt.close(fig)
+                    x_scaler=mean_scalers.get(xVar),
+                    y_scaler=mean_scalers.get(yVar2),
+                    z_scaler_mean=mean_scalers.get(mean_result["gp_target"]),
+                    z_scaler_unc=mean_scalers.get(mean_result["gp_target"]) if unscale_std else None
+                )[0]
+            pair["mean"] = _fig_to_b64(fig)
 
         pairs.append(pair)
 
