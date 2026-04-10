@@ -2,7 +2,7 @@
 body {
     margin: 0;
     font-family: "Inter", "Helvetica Neue", sans-serif;
-    background: #0e1726;
+    background: #060d18;
     color: #e2e8f0;
 }
 
@@ -23,9 +23,10 @@ body {
     margin: 0 auto;
     position: sticky;
     top: 0;
-    background: rgba(14, 23, 38, 0.8);
-    backdrop-filter: blur(10px);
-    z-index: 1000;
+    background: rgba(6, 13, 24, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    z-index: 1001;
 }
 
 .navbar a {
@@ -48,58 +49,195 @@ body {
 
 /* ====== Hero Section ====== */
 .hero {
+    position: relative;
     height: 100vh;
     display: flex;
     align-items: center;
-    padding: 0 80px;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
     background: linear-gradient(
         120deg,
-        #0e1726,
-        #1e293b
+        #05111f,
+        #060d18,
+        #080f1a
     );
+    background-size: 300% 300%;
+    animation: gradientShift 12s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+#heroCanvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
 }
 
 .hero-content {
-    max-width: 600px;
+    position: relative;
+    z-index: 2;
+    width: 900px;
+    max-width: calc(100% - 48px);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 24px 64px rgba(0,0,0,0.4);
+    border-radius: 16px;
+    padding: 80px 52px 90px;
+    backdrop-filter: blur(12px);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 80px;
+}
+
+/* ── Eyebrow label above H1 ── */
+.hero-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(94, 234, 212, 0.7);
+    margin-bottom: 20px;
 }
 
 .hero h1 {
-    font-size: 48px;
+    font-size: 54px;
+    font-weight: 700;
     margin-bottom: 20px;
     color: white;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
 }
 
 .hero p {
     color: #94a3b8;
-    line-height: 1.6;
-    font-size: 18px;
+    line-height: 1.75;
+    font-size: 17px;
+    max-width: 58ch;
 }
 
-.hero button {
-    margin-top: 30px;
-    padding: 12px 28px;
+/* ── Launch Tool button ── */
+.hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    padding: 15px 36px;
     border: none;
-    border-radius: 6px;
-    background: #3b82f6;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
     color: white;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 0 28px rgba(99,102,241,0.35);
+    text-decoration: none;
 }
 
-.hero button:hover {
-    background: #2563eb;
+.hero-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 44px rgba(99,102,241,0.55);
+}
+
+.hero-btn .btn-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.hero-btn:hover .btn-arrow {
+    transform: translateX(4px);
+}
+
+/* ====== Feature Cards (Home) ====== */
+.home-features {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 120px 24px 100px;
+    position: relative;
+    z-index: 2;
+}
+
+.home-features h2 {
+    font-size: 30px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: white;
+    letter-spacing: -0.015em;
+}
+
+.home-features .section-sub {
+    color: #64748b;
+    font-size: 15px;
+    margin-bottom: 44px;
+}
+
+.feature-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .feature-cards { grid-template-columns: 1fr; }
+    .hero { padding: 0 32px; }
+    .hero h1 { font-size: 36px; }
+}
+
+.feature-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 28px 24px 32px;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.feature-card:hover {
+    border-color: rgba(13,148,136,0.5);
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.35), 0 0 24px rgba(13,148,136,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+.feature-card-icon {
+    font-size: 30px;
+    margin-bottom: 18px;
+    display: block;
+    line-height: 1;
+}
+
+.feature-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 10px;
+    letter-spacing: -0.01em;
+}
+
+.feature-card p {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.75;
 }
 
 /* ====== Cards (Universal) ====== */
 .card {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.055);
     border-radius: 14px;
     padding: 28px;
     backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.09);
     color: #e2e8f0;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 32px rgba(0,0,0,0.3);
 }
 
 .card h2,
@@ -128,10 +266,10 @@ body {
 }
 
 .column-card {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.055);
     border-radius: 14px;
     padding: 20px;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.09);
     max-height: 400px;
     overflow-y: auto;
     color: #e2e8f0;
@@ -159,13 +297,13 @@ button {
     border-radius: 6px;
     border: none;
     cursor: pointer;
-    background: #334155;
+    background: #1e2d42;
     color: white;
     transition: 0.2s ease;
 }
 
 button:hover {
-    background: #475569;
+    background: #2d3f57;
 }
 
 /* ====== Drag Containers ====== */
@@ -177,7 +315,7 @@ button:hover {
 .dropzone {
     min-width: 180px;
     min-height: 200px;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.15);
     padding: 10px;
     list-style-type: none;
     background: rgba(255,255,255,0.03);
@@ -258,24 +396,38 @@ textarea {
 
 /* ====== Content Sections ====== */
 .content-section {
+    position: relative;
+    z-index: 2;
     max-width: 900px;
     margin: 120px auto 80px auto;
-    padding: 40px;
+    padding: 48px;
     background: rgba(255,255,255,0.03);
-    border-radius: 14px;
-    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
     border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 24px 64px rgba(0,0,0,0.35);
 }
 
 .content-section h1 {
     margin-bottom: 30px;
-    font-size: 32px;
+    font-size: 34px;
+    font-weight: 700;
     color: white;
+    letter-spacing: -0.02em;
+}
+
+.content-section h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #f1f5f9;
+    letter-spacing: -0.01em;
 }
 
 .content-section p {
-    font-size: 16px;
-    color: #cbd5e1;
+    font-size: 15px;
+    color: #94a3b8;
+    line-height: 1.8;
+    max-width: 65ch;
 }
 
 /* ====== App Title ====== */
@@ -315,7 +467,7 @@ textarea {
 
 /* ====== Color Scheme Buttons ====== */
 .color-btn {
-    background: #334155;
+    background: #1e2d42;
     color: white;
     border: 1px solid rgba(255,255,255,0.1);
 }
@@ -326,7 +478,7 @@ textarea {
 }
 
 .color-btn:hover {
-    background: #475569;
+    background: #2d3f57;
 }
 
 .color-btn.active:hover {
@@ -335,7 +487,7 @@ textarea {
 
 /* ====== Mode Buttons ====== */
 .mode-btn {
-    background: #334155;
+    background: #1e2d42;
     color: white;
     border: 1px solid rgba(255,255,255,0.1);
 }
@@ -346,7 +498,7 @@ textarea {
 }
 
 .mode-btn:hover {
-    background: #475569;
+    background: #2d3f57;
 }
 
 .mode-btn.active:hover {
@@ -355,7 +507,7 @@ textarea {
 
 /* ====== Kernel Type Buttons ====== */
 .kernel-type-btn {
-    background: #334155;
+    background: #1e2d42;
     color: white;
     border: 1px solid rgba(255,255,255,0.1);
     padding: 6px 14px;
@@ -368,7 +520,7 @@ textarea {
 }
 
 .kernel-type-btn:hover {
-    background: #475569;
+    background: #2d3f57;
 }
 
 .kernel-type-btn.active:hover {
@@ -492,6 +644,108 @@ textarea {
 
 .example-mode-btn:hover {
     background: #0d9488;
+}
+
+/* ====== Page sparkle canvas (methodology / creators) ====== */
+#pageSparkle {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ====== Progress Bar ====== */
+.step-progress {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    margin-bottom: 28px;
+    overflow: hidden;
+}
+
+.step-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(15,118,110,0.5), rgba(13,148,136,0.5));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+}
+
+/* ====== Dropzone ====== */
+.dropzone-area {
+    border: 1.5px dashed rgba(13,148,136,0.45);
+    border-radius: 10px;
+    padding: 20px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    margin-top: 8px;
+}
+
+.dropzone-area:hover,
+.dropzone-area.dragover {
+    border-color: #0d9488;
+    background: rgba(15,118,110,0.07);
+}
+
+.dropzone-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    opacity: 0.6;
+}
+
+.dropzone-label {
+    font-size: 14px;
+    color: #cbd5e1;
+    margin-bottom: 4px;
+}
+
+.dropzone-label span {
+    color: #2dd4bf;
+}
+
+.dropzone-sub {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.dropzone-filename {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #2dd4bf;
+    font-weight: 500;
+}
+
+/* ====== Primary CTA Button ====== */
+.btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 0 18px rgba(99,102,241,0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 0 28px rgba(99,102,241,0.5);
+}
+
+/* ====== Teal Action Button ====== */
+.btn-action {
+    background: rgba(15,118,110,0.18);
+    color: #5eead4;
+    border: 1px solid rgba(13,148,136,0.3);
+    font-weight: 500;
+    box-shadow: 0 0 6px rgba(13,148,136,0.1);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-action:hover {
+    background: rgba(15,118,110,0.28);
+    box-shadow: 0 0 12px rgba(13,148,136,0.22);
 }
 
 /* ====== Validation ====== */

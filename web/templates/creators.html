@@ -3,8 +3,173 @@
 <head>
     <title>Creators - GPR Platform</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .creators-wrap {
+            max-width: 860px;
+            margin: 120px auto 80px;
+            padding: 0 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .creators-eyebrow {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(94, 234, 212, 0.7);
+            margin-bottom: 14px;
+        }
+
+        .creators-title {
+            font-size: 36px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -0.02em;
+            margin-bottom: 14px;
+        }
+
+        .creators-intro {
+            font-size: 16px;
+            color: #64748b;
+            max-width: 52ch;
+            line-height: 1.7;
+            margin-bottom: 56px;
+        }
+
+        /* ── Section label ── */
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(94, 234, 212, 0.7);
+            margin-bottom: 20px;
+        }
+
+        /* ── Team grid ── */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 56px;
+        }
+
+        .team-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 28px 20px 24px;
+            text-align: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .team-card:hover {
+            border-color: rgba(13,148,136,0.4);
+            transform: translateY(-3px);
+        }
+
+        .team-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(15,118,110,0.6), rgba(29,78,216,0.6));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin: 0 auto 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .team-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .team-school {
+            font-size: 13px;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* ── Acknowledgements ── */
+        .ack-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .ack-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .ack-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .ack-school {
+            font-size: 13px;
+            color: rgba(255,255,255,0.35);
+        }
+
+        @media (max-width: 600px) {
+            .team-grid { grid-template-columns: 1fr; }
+            .ack-grid  { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
+<canvas id="pageSparkle"></canvas>
+<script>
+(function() {
+    const c = document.getElementById("pageSparkle");
+    const x = c.getContext("2d");
+    function resize() { c.width = window.innerWidth; c.height = window.innerHeight; }
+    resize(); window.addEventListener("resize", resize);
+    const crystals = Array.from({length: 48}, () => ({
+        x: Math.random() * c.width, y: Math.random() * c.height,
+        s: Math.random() * 3 + 1.5,
+        rot: Math.random() * Math.PI,
+        drot: (Math.random() - 0.5) * 0.008,
+        a: Math.random(), da: (Math.random() - 0.5) * 0.003,
+        vx: (Math.random() - 0.5) * 0.12, vy: (Math.random() - 0.5) * 0.12
+    }));
+    function draw() {
+        x.clearRect(0, 0, c.width, c.height);
+        crystals.forEach(d => {
+            d.x += d.vx; d.y += d.vy;
+            d.rot += d.drot; d.a += d.da;
+            if (d.x < 0 || d.x > c.width)  d.vx *= -1;
+            if (d.y < 0 || d.y > c.height) d.vy *= -1;
+            if (d.a < 0.02 || d.a > 0.9) d.da *= -1;
+            x.save();
+            x.translate(d.x, d.y);
+            x.rotate(d.rot + Math.PI / 4);
+            x.fillStyle = `rgba(120,160,255,${d.a * 0.28})`;
+            x.strokeStyle = `rgba(150,185,255,${d.a * 0.45})`;
+            x.lineWidth = 0.6;
+            x.fillRect(-d.s / 2, -d.s / 2, d.s, d.s);
+            x.strokeRect(-d.s / 2, -d.s / 2, d.s, d.s);
+            x.restore();
+        });
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+</script>
 
 <nav class="navbar">
     <div class="nav-left">
@@ -18,20 +183,61 @@
     </div>
 </nav>
 
-<div class="page-container">
-    <div class="content-section">
-        <h1>Authors</h1>
+<div class="creators-wrap">
 
-        <p>
-            Built by CRISIS Capstone  
-            Software Engineering & Machine Learning
-        </p>
+    <!-- ── Intro ── -->
+    <p class="creators-eyebrow">CRISIS Capstone &mdash; Whitman College</p>
+    <h1 class="creators-title">Meet the Team</h1>
+    <p class="creators-intro">
+        Built for researchers who need fast, intuitive Gaussian Process modeling
+        without the overhead of writing it from scratch.
+    </p>
 
-        <p>
-            This platform was designed to provide an intuitive research-grade
-            interface for Gaussian Process modeling and interpretability.
-        </p>
+    <!-- ── Development Team ── -->
+    <p class="section-label">Development Team</p>
+    <div class="team-grid">
+        <div class="team-card">
+            <div class="team-avatar">AM</div>
+            <div class="team-name">Audrey Marthin</div>
+            <div class="team-school">Whitman College</div>
+        </div>
+        <div class="team-card">
+            <div class="team-avatar">CO</div>
+            <div class="team-name">Carl Odegard</div>
+            <div class="team-school">Whitman College</div>
+        </div>
+        <div class="team-card">
+            <div class="team-avatar">BA</div>
+            <div class="team-name">Beatrice Archer</div>
+            <div class="team-school">Whitman College</div>
+        </div>
     </div>
+
+    <!-- ── Acknowledgements ── -->
+    <p class="section-label">Acknowledgements</p>
+    <p style="font-size:14px;color:#64748b;margin-bottom:20px;max-width:52ch;line-height:1.7;">
+        The following researchers originally developed the CRISIS methodology
+        this platform is built upon.
+    </p>
+    <div class="ack-grid">
+        <div class="ack-card">
+            <span class="ack-name">Professor Gabe Gomes</span>
+            <span class="ack-school">Carnegie Mellon University</span>
+        </div>
+        <div class="ack-card">
+            <span class="ack-name">Professor Mark Hendricks</span>
+            <span class="ack-school">Whitman College</span>
+        </div>
+        <div class="ack-card">
+            <span class="ack-name">Professor Martin Seifrid</span>
+            <span class="ack-school">NC State University</span>
+        </div>
+        <div class="ack-card">
+            <span class="ack-name">Professor Jessica Sampson</span>
+            <span class="ack-school">University of Delaware</span>
+        </div>
+    </div>
+
 </div>
 </body>
 </html>

@@ -298,8 +298,8 @@ def load_example():
         type (str): "1d" (1d_data.csv) or "2d" (2d_data.csv).
             Defaults to "1d".
 
-    The 1D example is used with both mode (std + mean) on replicate spectroscopy
-    data. The 2D example is used with mean mode on nanoparticle synthesis data.
+    The 1D example uses mean mode on nanocrystalline materials data.
+    The 2D example uses both mode (std + mean) on nanocrystalline materials data.
     Feature engineering (e.g. rxn_concentration) is applied client-side via
     /apply_feature after this endpoint returns the base column list.
 

@@ -3,8 +3,191 @@
 <head>
     <title>Methodology - GPR Platform</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .method-nav {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            margin-bottom: 40px;
+            position: sticky;
+            top: 0;
+            padding: 14px 0;
+            z-index: 10;
+            overflow-x: auto;
+        }
+
+        .method-nav::-webkit-scrollbar { display: none; }
+
+        .method-nav a {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            text-decoration: none;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .method-nav a:hover {
+            background: rgba(15,118,110,0.2);
+            border-color: rgba(13,148,136,0.5);
+            color: rgba(94, 234, 212, 0.7);
+        }
+
+        /* ── Accordion ── */
+        .method-section {
+            margin-bottom: 8px;
+            scroll-margin-top: 80px;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .accordion-trigger {
+            width: 100%;
+            background: rgba(255,255,255,0.03);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            text-align: left;
+            transition: background 0.2s;
+        }
+
+        .accordion-trigger:hover {
+            background: rgba(255,255,255,0.055);
+        }
+
+        .accordion-trigger h2 {
+            margin: 0;
+            font-size: 17px;
+            font-weight: 600;
+            color: #f1f5f9;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .acc-icon {
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        .accordion-trigger .acc-meta {
+            font-size: 13px;
+            font-weight: 400;
+            color: #64748b;
+            margin-left: 10px;
+        }
+
+        .accordion-chevron {
+            color: #64748b;
+            font-size: 18px;
+            transition: transform 0.25s ease;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+
+        .method-section.open .accordion-chevron {
+            transform: rotate(180deg);
+        }
+
+        .accordion-body {
+            display: none;
+            padding: 4px 24px 28px;
+            background: rgba(255,255,255,0.015);
+        }
+
+        .method-section.open .accordion-body {
+            display: block;
+        }
+
+        .accordion-body h3 {
+            margin-top: 24px;
+            margin-bottom: 10px;
+            color: rgba(94, 234, 212, 0.7);
+            font-size: 0.82em;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        .accordion-body p {
+            margin-bottom: 14px;
+            line-height: 1.8;
+            color: #94a3b8;
+            font-size: 15px;
+            max-width: 68ch;
+        }
+
+        .accordion-body ul {
+            line-height: 2;
+            padding-left: 20px;
+            color: #94a3b8;
+            font-size: 15px;
+        }
+
+        .accordion-body ul li {
+            margin-bottom: 4px;
+        }
+
+        .accordion-body pre {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+
+        .accordion-body strong {
+            color: #e2e8f0;
+        }
+    </style>
 </head>
 <body>
+<canvas id="pageSparkle"></canvas>
+<script>
+(function() {
+    const c = document.getElementById("pageSparkle");
+    const x = c.getContext("2d");
+    function resize() { c.width = window.innerWidth; c.height = window.innerHeight; }
+    resize(); window.addEventListener("resize", resize);
+    const crystals = Array.from({length: 48}, () => ({
+        x: Math.random() * c.width, y: Math.random() * c.height,
+        s: Math.random() * 3 + 1.5,
+        rot: Math.random() * Math.PI,
+        drot: (Math.random() - 0.5) * 0.008,
+        a: Math.random(), da: (Math.random() - 0.5) * 0.003,
+        vx: (Math.random() - 0.5) * 0.12, vy: (Math.random() - 0.5) * 0.12
+    }));
+    function draw() {
+        x.clearRect(0, 0, c.width, c.height);
+        crystals.forEach(d => {
+            d.x += d.vx; d.y += d.vy;
+            d.rot += d.drot; d.a += d.da;
+            if (d.x < 0 || d.x > c.width)  d.vx *= -1;
+            if (d.y < 0 || d.y > c.height) d.vy *= -1;
+            if (d.a < 0.02 || d.a > 0.9) d.da *= -1;
+            x.save();
+            x.translate(d.x, d.y);
+            x.rotate(d.rot + Math.PI / 4);
+            x.fillStyle = `rgba(120,160,255,${d.a * 0.28})`;
+            x.strokeStyle = `rgba(150,185,255,${d.a * 0.45})`;
+            x.lineWidth = 0.6;
+            x.fillRect(-d.s / 2, -d.s / 2, d.s, d.s);
+            x.strokeRect(-d.s / 2, -d.s / 2, d.s, d.s);
+            x.restore();
+        });
+        requestAnimationFrame(draw);
+    }
+    draw();
+})();
+</script>
 
 <nav class="navbar">
     <div class="nav-left">
@@ -22,124 +205,254 @@
     <div class="content-section">
         <h1>Methodology</h1>
 
-        <h2>Overview</h2>
-        <p>
-            This platform fits Gaussian Process Regression (GPR) models to experimental data.
-            It supports two analysis modes depending on the structure of your dataset:
-        </p>
-        <ul>
-            <li><strong>Std mode</strong> — designed for datasets with replicate measurements.
-                Observations sharing the same condition variables are grouped, and the GP models
-                the per-group mean or standard deviation.</li>
-            <li><strong>Mean mode</strong> — designed for datasets without replicates.
-                The GP is fit directly to each row, treating each observation independently.</li>
-        </ul>
-        <p>
-            Both modes can be run simultaneously (<strong>Both mode</strong>) to compare
-            replicate-aggregated vs. raw-row modeling on the same dataset.
-        </p>
+        <!-- ─── Pill nav ─── -->
+        <nav class="method-nav">
+            <a href="#overview">Overview</a>
+            <a href="#feature-engineering">Feature Engineering</a>
+            <a href="#preprocessing">Preprocessing</a>
+            <a href="#grouping">Replicate Grouping</a>
+            <a href="#gpr">Gaussian Process Regression</a>
+            <a href="#evaluation">Model Evaluation</a>
+            <a href="#visualization">Visualization</a>
+            <a href="#examples">Example Mode</a>
+        </nav>
 
-        <h2>Data Preprocessing</h2>
-        <p>
-            Before fitting, all numerical control variables are standardized using
-            <code>StandardScaler</code> (zero mean, unit variance).
-            Categorical variables are one-hot encoded via <code>pd.get_dummies</code>,
-            and the resulting binary columns are included as control variables.
-        </p>
-        <p>
-            In <strong>Std mode</strong>, the measurement column is also standardized before
-            grouping. In <strong>Mean mode</strong>, the output column is standardized
-            before fitting to improve GP optimization stability.
-        </p>
-        <p>
-            Optional log-transformation can be applied to selected variables prior to fitting.
-            When a variable is log-transformed, prediction grids are generated in log space
-            and the axis is displayed on a log scale.
-        </p>
+        <!-- ─── Overview ─── -->
+        <section id="overview" class="method-section open">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    Overview
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>What it does</h3>
+                <ul>
+                    <li>Fits GPR models to experimental data through a guided 4-step workflow</li>
+                    <li>Steps: Upload → Feature Engineering → Analysis Setup → Kernel &amp; Training</li>
+                </ul>
+                <h3>Analysis Modes</h3>
+                <ul>
+                    <li><strong>Experimental Uncertainty (Std)</strong> — groups replicate rows by condition; GP models the per-group mean or std</li>
+                    <li><strong>Experimental Data (Mean)</strong> — fits GP directly to each row; no grouping applied</li>
+                    <li><strong>Both</strong> — runs both pipelines simultaneously for side-by-side comparison</li>
+                </ul>
+            </div>
+        </section>
 
-        <h2>Replicate Grouping (Std Mode)</h2>
-        <p>
-            Rows sharing identical values for all control variables are treated as replicates.
-            Each group is summarized into a single row containing the per-group
-            <strong>mean</strong>, <strong>standard deviation</strong>, and <strong>count</strong>.
-            Groups with fewer than 2 replicates are dropped, as standard deviation is undefined.
-        </p>
-        <p>
-            An optional outlier filter can be applied per group: observations more than
-            <em>k</em> standard deviations from the group mean are excluded before
-            computing summary statistics.
-        </p>
+        <!-- ─── Feature Engineering ─── -->
+        <section id="feature-engineering" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    Feature Engineering
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>How it works</h3>
+                <ul>
+                    <li>Define new columns from existing ones using Python-style expressions</li>
+                    <li>Reference any column by name; NumPy available as <code>np</code></li>
+                    <li>New columns are immediately available in the analysis setup step</li>
+                    <li>Optional — can be skipped entirely</li>
+                </ul>
+                <h3>Example</h3>
+                <pre><code>rxn_concentration = concentration * volume</code></pre>
+            </div>
+        </section>
 
-        <h2>Gaussian Process Regression</h2>
-        <p>
-            GPR is a non-parametric Bayesian method that places a prior over functions
-            and updates it given observed data. The posterior provides both a predicted
-            mean and a calibrated uncertainty estimate at every point.
-        </p>
-        <p>
-            The default kernel is <code>ConstantKernel × RBF</code> with ARD
-            (Automatic Relevance Determination), using one length scale per input dimension.
-            Hyperparameters are optimized by maximizing the log marginal likelihood,
-            with 5 random restarts to avoid local optima.
-        </p>
+        <!-- ─── Preprocessing ─── -->
+        <section id="preprocessing" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    Data Preprocessing
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>Numerical Variables</h3>
+                <ul>
+                    <li>Standardized with <code>StandardScaler</code> — zero mean, unit variance</li>
+                    <li>One scaler fit per column; axes inverse-transformed for display</li>
+                    <li>Std mode: measurement column scaled before grouping</li>
+                    <li>Mean mode: output column scaled before fitting</li>
+                </ul>
+                <h3>Categorical Variables</h3>
+                <ul>
+                    <li>One-hot encoded via <code>pd.get_dummies</code></li>
+                    <li>Binary dummy columns appended to the control variable list; not scaled</li>
+                </ul>
+                <h3>Log Scale</h3>
+                <ul>
+                    <li>Optional flag per variable</li>
+                    <li>Prediction grids use log-spaced points; axis displayed on log scale</li>
+                </ul>
+            </div>
+        </section>
 
-        <h3>Kernel Options</h3>
-        <ul>
-            <li><strong>RBF</strong> — Radial Basis Function; assumes infinitely smooth functions.</li>
-            <li><strong>Matérn</strong> — Controls smoothness via the ν parameter
-                (1/2, 3/2, or 5/2); more appropriate for functions with limited differentiability.</li>
-            <li><strong>Rational Quadratic</strong> — Equivalent to an infinite mixture of RBF kernels
-                at different length scales; captures multi-scale variation.</li>
-        </ul>
+        <!-- ─── Replicate Grouping ─── -->
+        <section id="grouping" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="9" y1="14.5" x2="15" y2="14.5"/></svg>
+                    Replicate Grouping <span class="acc-meta">— Std Mode only</span>
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>How groups are formed</h3>
+                <ul>
+                    <li>Rows sharing identical control variable values → treated as replicates</li>
+                    <li>Each group summarized into: <strong>mean</strong>, <strong>std</strong>, <strong>count</strong></li>
+                    <li>Groups with fewer than 2 replicates are dropped (std undefined)</li>
+                </ul>
+            </div>
+        </section>
 
-        <h3>Kernel Structure</h3>
-        <ul>
-            <li><strong>ConstantKernel × base</strong> — scales the output variance of the base kernel.</li>
-            <li><strong>base + WhiteKernel</strong> — adds an explicit iid noise term; useful when
-                observation noise is not already encoded in the alpha parameter.</li>
-        </ul>
+        <!-- ─── GPR ─── -->
+        <section id="gpr" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1.5"/><ellipse cx="12" cy="12" rx="10" ry="3.5"/><ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(60 12 12)"/></svg>
+                    Gaussian Process Regression
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>What is GPR?</h3>
+                <ul>
+                    <li>Non-parametric Bayesian method — places a prior over functions, updates it with data</li>
+                    <li>Outputs a predicted mean <em>and</em> a calibrated uncertainty at every point</li>
+                    <li>Uses ARD (Automatic Relevance Determination) — one length scale per input dimension</li>
+                    <li>Hyperparameters optimized via log marginal likelihood with 5 random restarts</li>
+                </ul>
+                <h3>Kernel Options</h3>
+                <ul>
+                    <li><strong>RBF</strong> — infinitely smooth; good baseline for smooth physical processes</li>
+                    <li><strong>Matérn</strong> — ν = 1/2, 3/2, or 5/2; controls smoothness; preferred for experimental data</li>
+                    <li><strong>Rational Quadratic</strong> — mixture of RBFs at different scales; captures multi-scale variation</li>
+                </ul>
+                <h3>Kernel Structure</h3>
+                <ul>
+                    <li><strong>ConstantKernel × base</strong> — learns overall signal magnitude</li>
+                    <li><strong>base + WhiteKernel</strong> — adds explicit iid noise on top of per-point alpha</li>
+                </ul>
+                <h3>Noise (Alpha)</h3>
+                <ul>
+                    <li><strong>Std mode</strong> — Std: α = σ² &nbsp;|&nbsp; SEM: α = (σ/√n)² &nbsp;|&nbsp; Constant: α = 0.05</li>
+                    <li><strong>Mean mode</strong> — constant α = 0.05 (no replicate variance available)</li>
+                </ul>
+            </div>
+        </section>
 
-        <h3>Noise (Alpha)</h3>
-        <p>
-            In <strong>Std mode</strong>, observation noise is set per data point using the
-            per-group variance estimates:
-        </p>
-        <ul>
-            <li><strong>Std</strong> — alpha = (standard deviation)²</li>
-            <li><strong>SEM</strong> — alpha = (standard deviation / √count)²</li>
-            <li><strong>Constant</strong> — alpha = 0.05 for all points</li>
-        </ul>
-        <p>
-            In <strong>Mean mode</strong>, a constant alpha is always used since individual
-            replicate variance is unavailable.
-        </p>
+        <!-- ─── Model Evaluation ─── -->
+        <section id="evaluation" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Model Evaluation
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>Reported Metrics</h3>
+                <ul>
+                    <li><strong>R²</strong> — coefficient of determination; 1.0 = perfect fit on training data</li>
+                    <li><strong>MAE</strong> — mean absolute error in standardized units</li>
+                    <li><strong>RMSE</strong> — root mean squared error in standardized units</li>
+                </ul>
+                <p>All metrics are computed on the standardized target values used during fitting.</p>
+            </div>
+        </section>
 
-        <h2>Model Evaluation</h2>
-        <p>
-            Training-set performance is reported using three metrics:
-        </p>
-        <ul>
-            <li><strong>R²</strong> — coefficient of determination; 1.0 is a perfect fit.</li>
-            <li><strong>MAE</strong> — mean absolute error in standardized units.</li>
-            <li><strong>RMSE</strong> — root mean squared error in standardized units.</li>
-        </ul>
+        <!-- ─── Visualization ─── -->
+        <section id="visualization" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 16 11 10 15 13 19 7"/></svg>
+                    Visualization
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>General</h3>
+                <ul>
+                    <li>One plot per unique categorical combination; <strong>All</strong> plot always included first</li>
+                    <li>All axes inverse-transformed to original units for display</li>
+                </ul>
+                <h3>1D Plots</h3>
+                <ul>
+                    <li>One input swept across its range; all others held at median</li>
+                    <li>Shows predicted mean + shaded 95% CI (mean ± 1.96 × std)</li>
+                    <li>Std mode (mean target): y-axis auto-unscaled to measurement column units</li>
+                    <li>Std mode (std target): <em>Unscale std axis</em> toggle controls units</li>
+                </ul>
+                <h3>2D Plots</h3>
+                <ul>
+                    <li>Two inputs define a prediction grid; rest held at median</li>
+                    <li><strong>Left panel</strong> — GP predicted mean, always in original units</li>
+                    <li><strong>Right panel</strong> — GP uncertainty (posterior std); toggle-controlled unscaling</li>
+                </ul>
+                <h3>Color Schemes</h3>
+                <ul>
+                    <li><strong>Default</strong> — tab colors + viridis</li>
+                    <li><strong>Colorblind-safe</strong> — Wong palette + cividis</li>
+                    <li><strong>High Contrast</strong> — black-anchored palette + binary</li>
+                </ul>
+            </div>
+        </section>
 
-        <h2>Visualization</h2>
-        <p>
-            Plots are generated for each unique combination of categorical variable values.
-            An <em>All</em> plot showing all data is always included first.
-        </p>
-        <ul>
-            <li><strong>1D</strong> — GP mean ± 95% confidence interval over a single input variable,
-                with other variables held at their median.</li>
-            <li><strong>2D</strong> — Contour plots of GP predicted mean and uncertainty over two
-                input variables, with remaining variables held at their median.</li>
-        </ul>
-        <p>
-            Three color schemes are available: Default, Colorblind-safe, and High Contrast.
-        </p>
+        <!-- ─── Example Mode ─── -->
+        <section id="examples" class="method-section">
+            <button class="accordion-trigger" onclick="toggleAccordion(this)">
+                <h2>
+                    <svg class="acc-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                    Example Mode
+                </h2>
+                <span class="accordion-chevron">&#8964;</span>
+            </button>
+            <div class="accordion-body">
+                <h3>1D Example — nanocrystalline materials, Mean mode</h3>
+                <ul>
+                    <li>Shows feature engineering step: <code>rxn_concentration = concentration × volume</code></li>
+                    <li>Fits a 1D GP on lambda max wavelength using a Matérn kernel</li>
+                </ul>
+                <h3>2D Example — nanocrystalline materials, Both mode</h3>
+                <ul>
+                    <li>Side-by-side Std and Mean GP contour plots</li>
+                    <li>Two reagent concentration variables as inputs</li>
+                </ul>
+                <h3>How to use</h3>
+                <ul>
+                    <li>All configuration steps are pre-filled</li>
+                    <li>Click <strong>Continue</strong> through each step → hit <strong>Run GP</strong> to train</li>
+                </ul>
+            </div>
+        </section>
+
     </div>
 </div>
+
+<script>
+function toggleAccordion(trigger) {
+    const section = trigger.closest(".method-section");
+    section.classList.toggle("open");
+}
+
+// Pill nav clicks: open the target section if it's closed
+document.querySelectorAll(".method-nav a").forEach(link => {
+    link.addEventListener("click", function() {
+        const id = this.getAttribute("href").slice(1);
+        const section = document.getElementById(id);
+        if (section && !section.classList.contains("open")) {
+            section.classList.add("open");
+        }
+    });
+});
+</script>
 
 </body>
 </html>

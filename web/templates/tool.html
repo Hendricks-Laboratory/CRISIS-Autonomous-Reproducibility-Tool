@@ -5,7 +5,6 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
 <nav class="navbar">
     <div class="nav-left"><span class="brand">GPR Research Platform</span></div>
     <div class="nav-right">
@@ -19,6 +18,11 @@
 <div class="page-container">
 <h1 class="app-title">Gaussian Process Regression Tool</h1>
 
+<!-- Progress bar -->
+<div class="step-progress">
+    <div class="step-progress-fill" id="stepProgressFill" style="width:25%;"></div>
+</div>
+
 <!-- ========================= -->
 <!-- STEP 1: UPLOAD            -->
 <!-- ========================= -->
@@ -26,10 +30,20 @@
     <h2>Step 1: Upload Dataset</h2>
     <div class="card center-card">
         <p>Upload a CSV file to get started.</p>
-        <div style="margin-top:20px;">
-            <input type="file" id="fileInput" accept=".csv">
-            <button onclick="uploadFile()" style="margin-left:10px;">Upload</button>
+
+        <!-- Hidden real input -->
+        <input type="file" id="fileInput" accept=".csv" style="display:none;">
+
+        <!-- Styled dropzone -->
+        <div class="dropzone-area" id="dropzoneArea" onclick="document.getElementById('fileInput').click()">
+            <div class="dropzone-icon">&#8613;</div>
+            <div class="dropzone-label">Drop your CSV here or <span>click to browse</span></div>
+            <div class="dropzone-sub">Supports .csv files</div>
+            <div class="dropzone-filename" id="dropzoneFilename" style="display:none;"></div>
         </div>
+
+        <button onclick="uploadFile()" class="btn-primary" style="margin-top:16px;padding:12px 40px;">Upload</button>
+
         <div style="margin-top:24px;border-top:1px solid rgba(255,255,255,0.08);padding-top:20px;">
             <p style="color:#64748b;font-size:14px;margin-bottom:12px;">— or try a pre-loaded example —</p>
             <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -51,13 +65,13 @@
         <p class="example-hint">Example: <code>rxn_concentration = concentration * volume</code></p>
         <div style="margin-top:16px;display:flex;gap:10px;align-items:center;">
             <input type="text" id="featureInput" placeholder="new_col = col1 * col2" style="flex:1;">
-            <button onclick="addFeature()">Add Feature</button>
+            <button onclick="addFeature()" class="btn-action">Add Feature</button>
         </div>
         <ul id="featureList" style="margin-top:12px;padding-left:20px;color:#94a3b8;"></ul>
     </div>
     <div class="nav-buttons">
         <button onclick="prevStep()">Back</button>
-        <button onclick="handleStep2Continue()">Continue</button>
+        <button onclick="handleStep2Continue()" class="btn-primary">Continue</button>
     </div>
 </div>
 
@@ -124,7 +138,7 @@
                         <ul id="stdUnclassified" class="dropzone" style="min-width:160px;min-height:100px;"></ul>
                     </div>
                 </div>
-                <button onclick="confirmStdClassify()" style="margin-top:14px;">Confirm Classification</button>
+                <button onclick="confirmStdClassify()" class="btn-action" style="margin-top:14px;">Confirm Classification</button>
             </div>
 
             <!-- Log vars -->
@@ -179,7 +193,7 @@
                         <div><h4>Numerical</h4><ul id="meanManualNum" class="dropzone"></ul></div>
                         <div><h4>Categorical</h4><ul id="meanManualCat" class="dropzone"></ul></div>
                     </div>
-                    <button onclick="confirmMeanManual()" style="margin-top:14px;">Confirm Selection</button>
+                    <button onclick="confirmMeanManual()" class="btn-action" style="margin-top:14px;">Confirm Selection</button>
                 </div>
             </div>
 
@@ -206,7 +220,7 @@
 
     <div class="nav-buttons">
         <button onclick="prevStep()">Back</button>
-        <button onclick="handleStep3Continue()">Continue to Training</button>
+        <button onclick="handleStep3Continue()" class="btn-primary">Continue to Training</button>
     </div>
 </div>
 
@@ -233,7 +247,7 @@
                     <option value="constant">Constant</option>
                 </select>
             </div>
-            <button id="runStdBtn" onclick="runGPR('std')">Run Std GP</button>
+            <button id="runStdBtn" onclick="runGPR('std')" class="btn-action">Run Std GP</button>
             <div id="stdGprStatus" style="display:none;margin-top:12px;"><strong>Training...</strong>
                 <div id="stdGprTimer" style="color:#94a3b8;"></div>
             </div>
@@ -251,7 +265,7 @@
             <div style="margin-bottom:14px;color:#94a3b8;font-size:14px;">
                 Noise: <strong style="color:#e2e8f0;">Constant</strong>
             </div>
-            <button id="runMeanBtn" onclick="runGPR('mean')">Run Mean GP</button>
+            <button id="runMeanBtn" onclick="runGPR('mean')" class="btn-action">Run Mean GP</button>
             <div id="meanGprStatus" style="display:none;margin-top:12px;"><strong>Training...</strong>
                 <div id="meanGprTimer" style="color:#94a3b8;"></div>
             </div>
@@ -294,8 +308,8 @@
             </div>
 
             <div style="display:flex;gap:12px;">
-                <button onclick="generatePlot('1d')">Generate 1D Plot</button>
-                <button onclick="generatePlot('2d')">Generate 2D Plot</button>
+                <button onclick="generatePlot('1d')" class="btn-action">Generate 1D Plot</button>
+                <button onclick="generatePlot('2d')" class="btn-action">Generate 2D Plot</button>
             </div>
 
             <div id="plotArea" style="margin-top:24px;"></div>
@@ -393,6 +407,60 @@
     </div>
 </template>
 
+<script>
+/* ── Dropzone ── */
+(function() {
+    const area = document.getElementById("dropzoneArea");
+    const input = document.getElementById("fileInput");
+    const label = document.getElementById("dropzoneFilename");
+
+    input.addEventListener("change", () => {
+        if (input.files[0]) {
+            label.textContent = input.files[0].name;
+            label.style.display = "block";
+        }
+    });
+
+    area.addEventListener("dragover", e => {
+        e.preventDefault();
+        area.classList.add("dragover");
+    });
+    area.addEventListener("dragleave", () => area.classList.remove("dragover"));
+    area.addEventListener("drop", e => {
+        e.preventDefault();
+        area.classList.remove("dragover");
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith(".csv")) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            label.textContent = file.name;
+            label.style.display = "block";
+        }
+    });
+})();
+
+/* ── Progress bar ── */
+(function() {
+    const fill = document.getElementById("stepProgressFill");
+    const steps = ["uploadStep", "featureEngineeringStep", "modeStep", "trainingStep"];
+    const pcts  = ["25%", "50%", "75%", "100%"];
+
+    const observer = new MutationObserver(() => {
+        steps.forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el && el.style.display !== "none") {
+                fill.style.width = pcts[i];
+            }
+        });
+    });
+
+    steps.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) observer.observe(el, { attributes: true, attributeFilter: ["style"] });
+    });
+})();
+</script>
 <script src="/static/script.js"></script>
 </body>
 </html>

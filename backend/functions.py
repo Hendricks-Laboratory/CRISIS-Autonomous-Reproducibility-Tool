@@ -125,7 +125,7 @@ def fit_gp(df, controlVars, kernel=None, outputVar=None, logVars=None, noise="st
     elif noise == "constant":
         alpha = 5e-2
     else:
-        raise ValueError("noise must be 'std', 'sem' and constant")
+        raise ValueError("noise must be 'std', 'sem', or 'constant'")
 
     if kernel == None:
         kernel = ConstantKernel(1.0, (1e-2, 1e2)) * RBF(
@@ -141,7 +141,6 @@ def fit_gp(df, controlVars, kernel=None, outputVar=None, logVars=None, noise="st
     )
 
     gp.fit(X.to_numpy(), y)
-    print("kernel =", gp.kernel_)
 
     y_pred = gp.predict(X.to_numpy())
 

@@ -18,19 +18,136 @@
     </div>
 </nav>
 
-<div class="page-container">
-    <section class="hero">
-        <div class="hero-content">
-            <h1>Advanced Gaussian Process Modeling</h1>
+<!-- ── Hero ── -->
+<section class="hero">
+    <canvas id="heroCanvas"></canvas>
+    <div class="hero-content">
+        <span class="hero-eyebrow">CRISIS Capstone &mdash; Whitman College</span>
+        <h1>Advanced Gaussian<br>Process Modeling</h1>
+        <p>
+            A modern research-grade platform for Gaussian Process Regression,
+            nonlinear modeling, and experimental data visualization.
+        </p>
+        <a href="/tool" class="hero-btn">
+            Launch Tool <span class="btn-arrow">→</span>
+        </a>
+    </div>
+</section>
+
+<!-- ── Feature Cards ── -->
+<div class="home-features">
+    <h2>Three Ways to Model Your Data</h2>
+    <p class="section-sub">Choose the mode that fits your experimental structure.</p>
+
+    <div class="feature-cards">
+        <div class="feature-card">
+            <div class="feature-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="6" cy="17" r="1.5"/><circle cx="10" cy="11" r="1.5"/><circle cx="15" cy="15" r="1.5"/><circle cx="18" cy="7" r="1.5"/><circle cx="8" cy="6" r="1.5"/>
+                    <path d="M3 3v18h18"/>
+                </svg>
+            </div>
+            <h3>Experimental Uncertainty</h3>
             <p>
-                A modern research-grade platform for outlier detection,
-                nonlinear regression modeling, and interpretability analysis.
+                Designed for datasets with replicate measurements. Groups rows by condition,
+                then fits a GP on the per-group mean or standard deviation.
             </p>
-            <a href="/tool">
-                <button>Launch Tool</button>
-            </a>
         </div>
-    </section>
+        <div class="feature-card">
+            <div class="feature-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"/>
+                    <polyline points="5 16 9 10 13 13 18 6"/>
+                </svg>
+            </div>
+            <h3>Experimental Data</h3>
+            <p>
+                Fits the GP directly to each observation without grouping. Best for
+                datasets where every row is a distinct data point and no replicates exist.
+            </p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1.5"/>
+                    <ellipse cx="12" cy="12" rx="10" ry="3.5"/>
+                    <ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(60 12 12)"/>
+                </svg>
+            </div>
+            <h3>Both Modes</h3>
+            <p>
+                Runs both pipelines simultaneously for side-by-side comparison.
+                See how replicate-aggregated and row-level modeling differ on the
+                same dataset.
+            </p>
+        </div>
+    </div>
 </div>
+
+<script>
+/* ── Particle canvas ── */
+const canvas = document.getElementById("heroCanvas");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+const NUM    = 72;
+const RADIUS = 2;
+const MAX_DIST = 140;
+
+const dots = Array.from({ length: NUM }, () => ({
+    x:  Math.random() * canvas.width,
+    y:  Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.4,
+    vy: (Math.random() - 0.5) * 0.4,
+}));
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // move
+    dots.forEach(d => {
+        d.x += d.vx;
+        d.y += d.vy;
+        if (d.x < 0 || d.x > canvas.width)  d.vx *= -1;
+        if (d.y < 0 || d.y > canvas.height) d.vy *= -1;
+    });
+
+    // lines
+    for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+            const dx   = dots[i].x - dots[j].x;
+            const dy   = dots[i].y - dots[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < MAX_DIST) {
+                const alpha = (1 - dist / MAX_DIST) * 0.18;
+                ctx.strokeStyle = `rgba(99,130,220,${alpha})`;
+                ctx.lineWidth   = 1;
+                ctx.beginPath();
+                ctx.moveTo(dots[i].x, dots[i].y);
+                ctx.lineTo(dots[j].x, dots[j].y);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // dots
+    dots.forEach(d => {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(120,160,255,0.45)";
+        ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+}
+draw();
+</script>
+
 </body>
 </html>

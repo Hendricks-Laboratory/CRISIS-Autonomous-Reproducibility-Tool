@@ -159,7 +159,7 @@ async function loadExample(type) {
         const banner = document.getElementById("step2ExampleBanner");
         banner.innerHTML = `<div class="example-banner">
             <strong>1D Example loaded</strong> — <code>rxn_concentration = concentration × volume</code> has been added as a derived feature.
-            Everything is pre-configured for <strong>Both Mode</strong> (Std GP + Mean GP) on lambda max wavelength.
+            Everything is pre-configured for <strong>Mean Mode</strong> on lambda max wavelength.
             Just hit <strong>Continue</strong> to proceed.
         </div>`;
         banner.style.display = "block";
@@ -194,20 +194,20 @@ function handleStep3Continue() {
 
 /* Populate step 3 UI as if the user made all the choices, then show the banner. */
 function _initStep3Example() {
-    initModeStep();           // reset step 3 to clean state
+    initModeStep();            // reset step 3 to clean state
     _populateStep3ExampleUI(); // fill in all the UI
 
     const banner = document.getElementById("step3ExampleBanner");
     if (EXAMPLE_MODE === "1d") {
         banner.innerHTML = `<div class="example-banner">
-            <strong>Both Mode pre-configured</strong> — columns assigned below.<br>
-            <strong>Std GP:</strong> groups replicates by rxn_concentration + additive → fits replicate mean of lambda max wavelength.<br>
-            <strong>Mean GP:</strong> rxn_concentration, temp, Minutes_Between_LastAddition_and_Scan + additive → lambda max wavelength.<br>
+            <strong>Mean Mode pre-configured</strong> — columns assigned below.<br>
+            <strong>Mean GP:</strong> rxn_concentration + additive → lambda max wavelength.<br>
             Just hit <strong>Continue to Training</strong>.
         </div>`;
     } else {
         banner.innerHTML = `<div class="example-banner">
-            <strong>Mean Mode pre-configured</strong> — columns assigned below.<br>
+            <strong>Both Mode pre-configured</strong> — columns assigned below.<br>
+            <strong>Std GP:</strong> groups replicates by potassium_bromide + silver_nitrate → fits replicate mean of lambda max wavelength.<br>
             <strong>Mean GP:</strong> potassium_bromide + silver_nitrate → lambda max wavelength.<br>
             Just hit <strong>Continue to Training</strong>.
         </div>`;
@@ -218,37 +218,10 @@ function _initStep3Example() {
 /* Fill in all step 3 DOM elements and trigger the same confirm functions the user would call. */
 function _populateStep3ExampleUI() {
     if (EXAMPLE_MODE === "1d") {
-        selectAnalysisMode("both");
-
-        // ── Std section ──────────────────────────────────────────
-        // Select measurement column
-        document.getElementById("stdMeasurementCol").value = "lambda max wavelength";
-        STD_MEASUREMENT_COL = "lambda max wavelength";
-        _exRemove("stdAvailableCols", "lambda max wavelength");
-
-        // Drag rxn_concentration and additive into the replicate cols zone
-        ["rxn_concentration", "additive"].forEach(col => {
-            _exRemove("stdAvailableCols", col);
-            _exAppend("stdReplicateCols", col);
-        });
-
-        // Show classify section and place cols into num / cat lists
-        document.getElementById("stdClassifySection").style.display = "block";
-        _exAppend("stdNumCols", "rxn_concentration");
-        _exAppend("stdCatCols", "additive");
-
-        // Confirm classification — sets STD_NUM_COLS, STD_CAT_COLS, shows log + target sections
-        confirmStdClassify();
-
-        // GP target: replicate mean (already the default radio but be explicit)
-        const meanRadio = document.querySelector('input[name="stdGpTarget"][value="mean"]');
-        if (meanRadio) meanRadio.checked = true;
-
-        // ── Mean section ─────────────────────────────────────────
+        // 1D: mean mode only — rxn_concentration + additive → lambda max wavelength
+        selectAnalysisMode("mean");
         selectMeanMode("manual");
-        ["rxn_concentration", "temp", "Minutes_Between_LastAddition_and_Scan"].forEach(col => {
-            _exAppend("meanManualNum", col);
-        });
+        _exAppend("meanManualNum", "rxn_concentration");
         _exAppend("meanManualCat", "additive");
 
         // Confirm selection — sets MEAN_NUM_COLS, MEAN_CAT_COLS, shows log + target sections
@@ -258,12 +231,36 @@ function _populateStep3ExampleUI() {
         onMeanOutputColChange();
 
     } else {
-        // 2D: mean mode only
-        selectAnalysisMode("mean");
+        // 2D: both mode — potassium_bromide + silver_nitrate on each side
+        selectAnalysisMode("both");
+
+        // ── Std section ──────────────────────────────────────────
+        document.getElementById("stdMeasurementCol").value = "lambda max wavelength";
+        STD_MEASUREMENT_COL = "lambda max wavelength";
+        _exRemove("stdAvailableCols", "lambda max wavelength");
+
+        ["potassium_bromide", "silver_nitrate"].forEach(col => {
+            _exRemove("stdAvailableCols", col);
+            _exAppend("stdReplicateCols", col);
+        });
+
+        document.getElementById("stdClassifySection").style.display = "block";
+        _exAppend("stdNumCols", "potassium_bromide");
+        _exAppend("stdNumCols", "silver_nitrate");
+
+        // Confirm classification — sets STD_NUM_COLS, STD_CAT_COLS, shows log + target sections
+        confirmStdClassify();
+
+        const meanRadio = document.querySelector('input[name="stdGpTarget"][value="mean"]');
+        if (meanRadio) meanRadio.checked = true;
+
+        // ── Mean section ─────────────────────────────────────────
         selectMeanMode("manual");
         ["potassium_bromide", "silver_nitrate"].forEach(col => {
             _exAppend("meanManualNum", col);
         });
+
+        // Confirm selection — sets MEAN_NUM_COLS, MEAN_CAT_COLS, shows log + target sections
         confirmMeanManual();
 
         document.getElementById("meanOutputCol").value = "lambda max wavelength";
@@ -289,54 +286,67 @@ function setExampleTrainingState() {
     clearTrainingState();
 
     if (EXAMPLE_MODE === "1d") {
-        ANALYSIS_MODE = "both";
-
-        // Std mode: group by rxn_concentration + additive, measure lambda max wavelength, fit replicate mean
-        STD_NUM_COLS        = ["rxn_concentration"];
-        STD_CAT_COLS        = ["additive"];
-        STD_MEASUREMENT_COL = "lambda max wavelength";
-        STD_GP_TARGET       = "mean";
-        STD_LOG_VARS        = [];
-
-        // Mean mode: fit directly on lambda max wavelength using all control features
-        MEAN_NUM_COLS  = ["rxn_concentration", "temp", "Minutes_Between_LastAddition_and_Scan"];
-        MEAN_CAT_COLS  = ["additive"];
+        // Mean mode only: rxn_concentration + additive → lambda max wavelength
+        ANALYSIS_MODE   = "mean";
+        MEAN_NUM_COLS   = ["rxn_concentration"];
+        MEAN_CAT_COLS   = ["additive"];
         MEAN_OUTPUT_COL = "lambda max wavelength";
         MEAN_LOG_VARS   = [];
 
     } else {
-        // 2D: mean mode — potassium_bromide + silver_nitrate → lambda max wavelength
-        ANALYSIS_MODE  = "mean";
-        MEAN_NUM_COLS  = ["potassium_bromide", "silver_nitrate"];
-        MEAN_CAT_COLS  = [];
-        MEAN_OUTPUT_COL = "lambda max wavelength";
-        MEAN_LOG_VARS   = [];
+        // Both mode: potassium_bromide + silver_nitrate on each side → lambda max wavelength
+        ANALYSIS_MODE       = "both";
+        STD_NUM_COLS        = ["potassium_bromide", "silver_nitrate"];
+        STD_CAT_COLS        = [];
+        STD_MEASUREMENT_COL = "lambda max wavelength";
+        STD_GP_TARGET       = "mean";
+        STD_LOG_VARS        = [];
+        MEAN_NUM_COLS       = ["potassium_bromide", "silver_nitrate"];
+        MEAN_CAT_COLS       = [];
+        MEAN_OUTPUT_COL     = "lambda max wavelength";
+        MEAN_LOG_VARS       = [];
     }
 
     // Build the training step UI (kernel HTML, block visibility, layout)
     initTrainingStep();
 
-    // Switch kernel buttons to Matern 1.5 for each active block
-    if (ANALYSIS_MODE === "std" || ANALYSIS_MODE === "both") selectKernelType("std", "matern");
-    if (ANALYSIS_MODE === "mean" || ANALYSIS_MODE === "both") selectKernelType("mean", "matern");
+    // Switch kernel buttons to Matern 1.5 and set length scale bounds
+    if (ANALYSIS_MODE === "std" || ANALYSIS_MODE === "both") {
+        selectKernelType("std", "matern");
+        _setExampleKernelBounds("std", EXAMPLE_MODE === "1d" ? 0.2 : 2, EXAMPLE_MODE === "1d" ? 5 : 10);
+    }
+    if (ANALYSIS_MODE === "mean" || ANALYSIS_MODE === "both") {
+        selectKernelType("mean", "matern");
+        _setExampleKernelBounds("mean", EXAMPLE_MODE === "1d" ? 0.2 : 2, EXAMPLE_MODE === "1d" ? 5 : 10);
+    }
 
     // Show example banner in step 4
     const banner = document.getElementById("step4ExampleBanner");
     if (EXAMPLE_MODE === "1d") {
         banner.innerHTML = `<div class="example-banner">
-            <strong>Both Mode</strong> — pre-configured with real spectroscopy data.<br>
-            <strong>Std GP:</strong> rxn_concentration + additive → lambda max wavelength (replicate mean)<br>
-            <strong>Mean GP:</strong> rxn_concentration, temp, Minutes_Between_LastAddition_and_Scan + additive → lambda max wavelength<br>
-            Kernel: <strong>Matern 1.5</strong>. Hit <strong>Run Std GP</strong> and <strong>Run Mean GP</strong> to train.
+            <strong>Mean Mode</strong> — pre-configured with real spectroscopy data.<br>
+            <strong>Mean GP:</strong> rxn_concentration + additive → lambda max wavelength<br>
+            Kernel: <strong>Matern 1.5</strong>, length scale bounds 0.2–5. Hit <strong>Run Mean GP</strong> to train.
         </div>`;
     } else {
         banner.innerHTML = `<div class="example-banner">
-            <strong>Mean Mode (2D)</strong> — pre-configured with nanoparticle synthesis data.<br>
+            <strong>Both Mode (2D)</strong> — pre-configured with nanoparticle synthesis data.<br>
+            <strong>Std GP:</strong> potassium_bromide + silver_nitrate → lambda max wavelength (replicate mean)<br>
             <strong>Mean GP:</strong> potassium_bromide + silver_nitrate → lambda max wavelength<br>
-            Kernel: <strong>Matern 1.5</strong>. Hit <strong>Run Mean GP</strong> to train, then generate a 2D plot.
+            Kernel: <strong>Matern 1.5</strong>, length scale bounds 2–10. Hit <strong>Run Std GP</strong> and <strong>Run Mean GP</strong> to train.
         </div>`;
     }
     banner.style.display = "block";
+}
+
+/* Check the base tuning checkbox and set length scale bounds for an example kernel. */
+function _setExampleKernelBounds(prefix, lsLower, lsUpper) {
+    const checkbox = document.getElementById(`${prefix}_baseTuning`);
+    if (!checkbox) return;
+    checkbox.checked = true;
+    toggleBaseTuning(prefix);  // reveals the tuning section
+    document.getElementById(`${prefix}_lsLower`).value = lsLower;
+    document.getElementById(`${prefix}_lsUpper`).value = lsUpper;
 }
 
 /* ==============================
